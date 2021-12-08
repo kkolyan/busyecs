@@ -45,7 +45,7 @@ namespace Kk.BusyEcs
     [EcsArchetype("events")]
     public struct Damage
     {
-        public float damage;
+        public float amount;
 
         // use EntityRef to keep safe references to entities in components and anywhere else outside of local scope.
         public EntityRef target;
@@ -75,7 +75,7 @@ namespace Kk.BusyEcs
 
     public struct Health
     {
-        public float health;
+        public float value;
     }
 
     [EcsSystemClass]
@@ -101,10 +101,10 @@ namespace Kk.BusyEcs
             );
 
             // this new entity allocated within "events" archetype, because Damage declares so.
-            _env.NewEntity(new Damage { damage = 42, target = character.AsRef() });
+            _env.NewEntity(new Damage { amount = 42, target = character.AsRef() });
 
             // "events" archetype is used too, because Damage declares "events" archetype and TimeToLive doesn't object against
-            _env.NewEntity(new Damage { damage = 36, target = character.AsRef() }, new TimeToLive { seconds = 2.7f });
+            _env.NewEntity(new Damage { amount = 36, target = character.AsRef() }, new TimeToLive { seconds = 2.7f });
         }
 
         // you may also specify any number of arguments after phase. they are components to match entities against.
@@ -112,7 +112,7 @@ namespace Kk.BusyEcs
         [EcsSystem]
         public void LogDamage(UpdatePhase _, Damage damage)
         {
-            Debug.Log($"damage: {damage.damage}");
+            Debug.Log($"damage: {damage.amount}");
         }
 
         // use "ref" keyword if component modification is intended
@@ -134,14 +134,14 @@ namespace Kk.BusyEcs
             // the same, but entity reference accessible as parameter to do contextual action
             if (entity.Has<Health>())
             {
-                entity.Get<Health>().health -= 17;
+                entity.Get<Health>().value -= 17;
             }
             else
             {
-                entity.Add<Health>().health = 100;
+                entity.Add<Health>().value = 100;
             }
 
-            if (entity.Get<Health>().health <= 0)
+            if (entity.Get<Health>().value <= 0)
             {
                 entity.DelEntity();
             }
@@ -153,7 +153,7 @@ namespace Kk.BusyEcs
         {
             if (damage.target.TryDeref(out Entity target))
             {
-                target.Get<Health>().health -= damage.damage;
+                target.Get<Health>().value -= damage.amount;
             }
 
             entity.DelEntity();
@@ -170,7 +170,7 @@ namespace Kk.BusyEcs
             {
                 if ((pos.value - explosionPos).magnitude <= explosion.radius)
                 {
-                    _env.NewEntity(new Damage { target = candidate.AsRef(), damage = explosion.damage });
+                    _env.NewEntity(new Damage { target = candidate.AsRef(), amount = explosion.damage });
                 }
             });
         }
