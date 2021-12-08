@@ -1,8 +1,9 @@
+using System;
 using Leopotam.EcsLite;
 
 namespace Kk.BusyEcs
 {
-    public readonly struct Entity
+    public readonly struct Entity : IEquatable<Entity>
     {
         private readonly EcsWorld _world;
         private readonly int _id;
@@ -41,6 +42,34 @@ namespace Kk.BusyEcs
         public bool Has<T>() where T : struct
         {
             return _world.GetPool<T>().Has(_id);
+        }
+        
+        public bool Equals(Entity other)
+        {
+            return Equals(_world, other._world) && _id == other._id;
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is Entity other && Equals(other);
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                return ((_world != null ? _world.GetHashCode() : 0) * 397) ^ _id;
+            }
+        }
+
+        public static bool operator ==(Entity a, Entity b)
+        {
+            return a.Equals(b);
+        }
+
+        public static bool operator !=(Entity a, Entity b)
+        {
+            return !(a == b);
         }
     }
 }
