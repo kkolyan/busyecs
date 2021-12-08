@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace Kk.BusyEcs
@@ -78,6 +79,11 @@ namespace Kk.BusyEcs
         public float value;
     }
 
+    public struct Armor
+    {
+        public float value;
+    }
+
     [EcsSystemClass]
     public class ExampleSystemClass
     {
@@ -154,6 +160,18 @@ namespace Kk.BusyEcs
             if (damage.target.TryDeref(out Entity target))
             {
                 target.Get<Health>().value -= damage.amount;
+            }
+
+            entity.DelEntity();
+        }
+
+        // access another entity by reference
+        [EcsSystem]
+        public void ApplyDamageWithArmor(UpdatePhase _, Entity entity, Damage damage)
+        {
+            if (damage.target.TryDeref(out Entity target))
+            {
+                target.Get<Health>().value -= Mathf.Max(0, damage.amount - target.Get<Armor>().value);
             }
 
             entity.DelEntity();
