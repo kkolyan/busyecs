@@ -84,6 +84,11 @@ namespace Kk.BusyEcs
         public float value;
     }
 
+    public struct Regen
+    {
+        public float perSecond;
+    }
+
     [EcsSystemClass]
     public class ExampleSystemClass
     {
@@ -130,7 +135,7 @@ namespace Kk.BusyEcs
 
         //  "Entity" (built-in type) parameter can be passed before components, if component access is not enough and you need to manipulate matched entity
         [EcsSystem]
-        public void DoOperations(UpdatePhase _, Entity entity, ref Velocity velocity, ref Position position)
+        public void DoOperations(UpdatePhase update, Entity entity, ref Velocity velocity, ref Position position)
         {
             if (velocity.value.magnitude > 299_792_458)
             {
@@ -155,23 +160,27 @@ namespace Kk.BusyEcs
 
         // access another entity by reference
         [EcsSystem]
-        public void ApplyDamage(UpdatePhase _, Entity entity, Damage damage)
+        public void ApplyDamageWithArmor(UpdatePhase _, Entity entity, Damage damage)
         {
-            if (damage.target.TryDeref(out Entity target))
+            //  damage.target is EntityRef
+            bool refValidAndCriteriaMatch = damage.target.Match((Entity target, ref Health health, ref Armor armor) =>
             {
-                target.Get<Health>().value -= damage.amount;
-            }
+                health.value -= Mathf.Max(0, damage.amount - armor.value);
+            });
 
             entity.DelEntity();
         }
 
-        // access another entity by reference
+        // access another reference by reference
         [EcsSystem]
-        public void ApplyDamageWithArmor(UpdatePhase _, Entity entity, Damage damage)
+        public void ApplyDamage1(UpdatePhase _, Entity entity, Damage damage)
         {
-            if (damage.target.TryDeref(out Entity target))
+            if (damage.target.Deref(out Entity target))
             {
-                target.Get<Health>().value -= Mathf.Max(0, damage.amount - target.Get<Armor>().value);
+                bool criteriaMatch = target.Match((ref Health health, ref Armor armor) =>
+                {
+                    health.value -= Mathf.Max(0, damage.amount - armor.value);
+                });
             }
 
             entity.DelEntity();
