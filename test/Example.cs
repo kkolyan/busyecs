@@ -160,7 +160,7 @@ namespace Kk.BusyEcs
 
         // access another entity by reference
         [EcsSystem]
-        public void ApplyDamageWithArmor(UpdatePhase _, Entity entity, Damage damage)
+        public void AccessAnotherEntity1(UpdatePhase _, Entity entity, Damage damage)
         {
             //  damage.target is EntityRef
             bool refValidAndCriteriaMatch = damage.target.Match((Entity target, ref Health health, ref Armor armor) =>
@@ -173,7 +173,7 @@ namespace Kk.BusyEcs
 
         // access another reference by reference
         [EcsSystem]
-        public void ApplyDamage1(UpdatePhase _, Entity entity, Damage damage)
+        public void AccessAnotherEntity2(UpdatePhase _, Entity entity, Damage damage)
         {
             if (damage.target.Deref(out Entity target))
             {
@@ -188,11 +188,12 @@ namespace Kk.BusyEcs
 
         // explicit querying of another entities by component set (what is EcsFilter used for in vanilla)
         [EcsSystem]
-        public void Explode(UpdatePhase _, Entity entity, Explosion explosion)
+        public void SubQuery(UpdatePhase _, Entity entity, Explosion explosion)
         {
             Vector3 explosionPos = entity.Get<Position>().value;
 
             // a bit naive way to detect neighbours, but just for Query demonstration
+            // note that all archetypes are queried under the hood
             _env.Query((Entity candidate, ref Position pos, ref Health __) =>
             {
                 if ((pos.value - explosionPos).magnitude <= explosion.radius)
