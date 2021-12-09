@@ -40,10 +40,10 @@ namespace Kk.BusyEcs
         }
     }
 
-    // This attribute says that this component relates to "one-frames" archetype, which is used during archetype resolution at the entity creation stage.
-    // This example shows very simple approach when all long-living entities associated with default archetype and short-living (one-frame) has
-    // dedicated "events" archetype. That is not ideal solution, but reasonable compromise between boilerplate and efficiency.
-    [EcsArchetype("events")]
+    // EcsWorld attribute says that this component relates to "events" world, which is used during EcsWorld resolution at the entity creation stage.
+    // In this example very simple approach is used when all long-living entities associated with default world and short-living (one-frame) has
+    // dedicated "events" world. That is not ideal solution, but reasonable compromise between boilerplate and efficiency.
+    [EcsWorld("events")]
     public struct Damage
     {
         public float amount;
@@ -52,7 +52,7 @@ namespace Kk.BusyEcs
         public EntityRef target;
     }
 
-    [EcsArchetype("events")]
+    [EcsWorld("events")]
     public struct Explosion
     {
         public float radius;
@@ -105,16 +105,16 @@ namespace Kk.BusyEcs
         public void CreateCharacter(StartPhase _)
         {
             // create entity
-            // note that you are obliged to specify at least one component. that's needed for archetype resolution. in this particular case, default archetype is used, because no initial component declares its archetype.
+            // note that you are obliged to specify at least one component. that's needed for EcsWorld resolution. in this particular case, default world is used, because no initial component declares its world.
             Entity character = _env.NewEntity(
                 new Position { value = Vector3.zero },
                 new Velocity { value = Vector3.forward }
             );
 
-            // this new entity allocated within "events" archetype, because Damage declares so.
+            // this new entity allocated within "events" world, because Damage declares so.
             _env.NewEntity(new Damage { amount = 42, target = character.AsRef() });
 
-            // "events" archetype is used too, because Damage declares "events" archetype and TimeToLive doesn't object against
+            // "events" world is used too, because Damage declares "events" archetype and TimeToLive doesn't object against
             _env.NewEntity(new Damage { amount = 36, target = character.AsRef() }, new TimeToLive { seconds = 2.7f });
         }
 
@@ -193,7 +193,7 @@ namespace Kk.BusyEcs
             Vector3 explosionPos = entity.Get<Position>().value;
 
             // a bit naive way to detect neighbours, but just for Query demonstration
-            // note that all archetypes are queried under the hood
+            // note that all worlds are queried under the hood
             _env.Query((Entity candidate, ref Position pos, ref Health __) =>
             {
                 if ((pos.value - explosionPos).magnitude <= explosion.radius)

@@ -4,11 +4,11 @@ using Leopotam.EcsLite;
 namespace Kk.BusyEcs
 {
     [AttributeUsage(AttributeTargets.Struct)]
-    public class EcsArchetypeAttribute: Attribute
+    public class EcsWorldAttribute: Attribute
     {
         public readonly string name;
 
-        public EcsArchetypeAttribute(string name = "") {
+        public EcsWorldAttribute(string name) {
             this.name = name;
         }
     }
