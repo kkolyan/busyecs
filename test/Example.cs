@@ -20,23 +20,23 @@ namespace Kk.BusyEcs
 
     public class ExampleUnityStartup : MonoBehaviour
     {
-        private EcsContainer _ecs;
+        private IEcsContainer _naiveEcs;
 
         private void Start()
         {
-            _ecs = new EcsContainer.Builder()
+            _naiveEcs = new EsContainerBuilder()
                 // register any services for DI
                 .Injectable(new SomeService())
                 .End();
 
             // force framework to invoke all systems that handle StartPhase
-            _ecs.Execute(new StartPhase());
+            _naiveEcs.Execute(new StartPhase());
         }
 
         private void Update()
         {
             // force framework to invoke all systems that handle UpdatePhase
-            _ecs.Execute(new UpdatePhase { dt = Time.deltaTime });
+            _naiveEcs.Execute(new UpdatePhase { dt = Time.deltaTime });
         }
     }
 
@@ -100,8 +100,7 @@ namespace Kk.BusyEcs
         // first parameter of ecs-system method should be a phase descriptor. following method invoked once per frame, because this phase triggered once per frame
         [EcsSystem]
         public void GlobalCallback(UpdatePhase _) { }
-
-        [EcsSystem]
+[EcsSystem]
         public void CreateCharacter(StartPhase _)
         {
             // create entity
