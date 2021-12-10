@@ -7,11 +7,11 @@ namespace Kk.BusyEcs
 
     [EcsPhase]
     [AttributeUsage(AttributeTargets.Method)]
-    public class StartAttribute : Attribute { }
+    public class Start : Attribute { }
 
     [EcsPhase]
     [AttributeUsage(AttributeTargets.Method)]
-    public class UpdateAttribute : Attribute { }
+    public class Update : Attribute { }
 
     // configure main loop. in Unity main loop is hidden by MonoBehavior scripts abstraction, so use them in case of Unity.
 
@@ -27,13 +27,13 @@ namespace Kk.BusyEcs
                 .End();
 
             // force framework to invoke all system methods attributed with [Start]
-            _ecs.Execute<StartAttribute>();
+            _ecs.Execute<Start>();
         }
 
         private void Update()
         {
             // force framework to invoke all system methods attributed with [Update]
-            _ecs.Execute<UpdateAttribute>();
+            _ecs.Execute<Update>();
         }
     }
 
@@ -88,7 +88,7 @@ namespace Kk.BusyEcs
 
     // attribute class with [EcsSystem] to make it visible for scanner
     [EcsSystem]
-    public class ExampleSystemClass
+    public class ExampleSystem
     {
         [Inject] private SomeService _someService = default;
 
@@ -126,14 +126,14 @@ namespace Kk.BusyEcs
 
         // use "ref" keyword if component modification is intended
         [Update]
-        public void ApplyVelocity(UpdateAttribute update, Velocity velocity, ref Position position)
+        public void ApplyVelocity(Update update, Velocity velocity, ref Position position)
         {
             position.value += velocity.value * Time.deltaTime;
         }
 
         //  "Entity" (built-in type) parameter can be passed before components, if component access is not enough and you need to manipulate matched entity
         [Update]
-        public void DoOperations(UpdateAttribute update, Entity entity, ref Velocity velocity, ref Position position)
+        public void DoOperations(Update update, Entity entity, ref Velocity velocity, ref Position position)
         {
             if (velocity.value.magnitude > 299_792_458)
             {
