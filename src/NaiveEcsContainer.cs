@@ -128,7 +128,7 @@ namespace Kk.BusyEcs
                 Debug.Log($"Phase: {phase.Key.Name}");
                 foreach (PhaseHandler handler in phase.Value)
                 {
-                    Debug.Log($"Phase handler: {handler.name}");
+                    Debug.Log($"{phase.Key.Name}: {handler.name}");
                 }
             }
         }
