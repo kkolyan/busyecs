@@ -11,7 +11,7 @@ namespace Kk.BusyEcs
         {
             _packed = packed;
         }
-
+        
         public bool Deref(out Entity result)
         {
             if (!_packed.Unpack(out EcsWorld world, out int id))
@@ -31,7 +31,7 @@ namespace Kk.BusyEcs
                 return false;
             }
 
-            return NaiveEcsContainer.ActOnEntity(
+            return NaiveEcsContainer.ForEntity(
                 callback.Method,
                 world,
                 0,

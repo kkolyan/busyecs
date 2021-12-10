@@ -24,6 +24,12 @@ namespace Kk.BusyEcs
             return ref _world.GetPool<T>().Add(_id);
         }
 
+        public Entity Add<T>(in T initialState) where T : struct
+        {
+            _world.GetPool<T>().Add(_id) = initialState;
+            return this;
+        }
+
         public void DelEntity()
         {
             _world.DelEntity(_id);
@@ -74,7 +80,7 @@ namespace Kk.BusyEcs
 
         private bool MatchInternal(Delegate callback)
         {
-            return NaiveEcsContainer.ActOnEntity(
+            return NaiveEcsContainer.ForEntity(
                 callback.Method,
                 _world,
                 0,

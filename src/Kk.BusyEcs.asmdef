@@ -1,6 +1,7 @@
 {
   "name": "Kk.BusyEcs",
   "references": [
-    "Leopotam.EcsLite"
+    "Leopotam.EcsLite",
+    "Leopotam.EcsLite.UnityEditor.Runtime"
   ]
 }
