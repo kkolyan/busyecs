@@ -1,5 +1,5 @@
 # About
-Busy ECS - extremely nice (and most likely slow) ECS framework. Intended to use [LeoECS Lite](https://github.com/Leopotam/ecslite) under the hood as the component storage engine.
+Busy ECS - extremely nice (and most likely slow) ECS framework. Uses [LeoECS Lite](https://github.com/Leopotam/ecslite) under the hood as the component storage engine.
 
 # Goals
 Nice looking code at any price.
