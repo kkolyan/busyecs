@@ -32,7 +32,12 @@ namespace Kk.BusyEcs
         public EcsContainerBuilder Scan(Assembly assembly)
         {
             Debug.Log($"Scanning assembly: {assembly}");
-            foreach (Type type in assembly.GetTypes())
+            return ScanTypes(assembly.GetTypes());
+        }
+
+        public EcsContainerBuilder ScanTypes(IEnumerable<Type> types)
+        {
+            foreach (Type type in types)
             {
                 ScanType(type);
             }
