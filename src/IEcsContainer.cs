@@ -1,10 +1,9 @@
-using Leopotam.EcsLite;
+using System;
 
 namespace Kk.BusyEcs
 {
     public interface IEcsContainer : IEnv
     {
-        void Execute<T>(T phase) where T : struct;
-        EcsSystems GetWorlds();
+        void Execute<T>() where T : Attribute;
     }
 }

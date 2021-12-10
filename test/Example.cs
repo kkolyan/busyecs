@@ -3,40 +3,37 @@ using UnityEngine;
 
 namespace Kk.BusyEcs
 {
-    // define phase-state structs you need. Start and Update are enough for simple case.
-    // that's just a structs with some attribute. 
+    // define phase attributes you need. Start and Update are enough for simple case.
 
     [EcsPhase]
-    public struct StartPhase { }
+    [AttributeUsage(AttributeTargets.Method)]
+    public class StartAttribute : Attribute { }
 
-    // they can carry values, if you like.
     [EcsPhase]
-    public struct UpdatePhase
-    {
-        public float dt;
-    }
+    [AttributeUsage(AttributeTargets.Method)]
+    public class UpdateAttribute : Attribute { }
 
     // configure main loop. in Unity main loop is hidden by MonoBehavior scripts abstraction, so use them in case of Unity.
 
     public class ExampleUnityStartup : MonoBehaviour
     {
-        private IEcsContainer _naiveEcs;
+        private IEcsContainer _ecs;
 
         private void Start()
         {
-            _naiveEcs = new EsContainerBuilder()
+            _ecs = new EsContainerBuilder()
                 // register any services for DI
                 .Injectable(new SomeService())
                 .End();
 
-            // force framework to invoke all systems that handle StartPhase
-            _naiveEcs.Execute(new StartPhase());
+            // force framework to invoke all system methods attributed with [Start]
+            _ecs.Execute<StartAttribute>();
         }
 
         private void Update()
         {
-            // force framework to invoke all systems that handle UpdatePhase
-            _naiveEcs.Execute(new UpdatePhase { dt = Time.deltaTime });
+            // force framework to invoke all system methods attributed with [Update]
+            _ecs.Execute<UpdateAttribute>();
         }
     }
 
@@ -89,7 +86,8 @@ namespace Kk.BusyEcs
         public float perSecond;
     }
 
-    [EcsSystemClass]
+    // attribute class with [EcsSystem] to make it visible for scanner
+    [EcsSystem]
     public class ExampleSystemClass
     {
         [Inject] private SomeService _someService = default;
@@ -97,11 +95,12 @@ namespace Kk.BusyEcs
         // IEnv is built-in service. no need to declare it with "Injectable()".
         [Inject] private IEnv _env = default;
 
-        // first parameter of ecs-system method should be a phase descriptor. following method invoked once per frame, because this phase triggered once per frame
-        [EcsSystem]
-        public void GlobalCallback(UpdatePhase _) { }
-[EcsSystem]
-        public void CreateCharacter(StartPhase _)
+        // because Update phase triggered once per frame
+        [Update]
+        public void GlobalCallback() { }
+
+        [Start]
+        public void CreateCharacter()
         {
             // create entity
             // note that you are obliged to specify at least one component. that's needed for EcsWorld resolution. in this particular case, default world is used, because no initial component declares its world.
@@ -119,22 +118,22 @@ namespace Kk.BusyEcs
 
         // you may also specify any number of arguments after phase. they are components to match entities against.
         // this method will be invoked every frame for each entity with Damage component, as this method is invoked in each iteration of vanilla EcsFilter
-        [EcsSystem]
-        public void LogDamage(UpdatePhase _, Damage damage)
+        [Update]
+        public void LogDamage(Damage damage)
         {
             Debug.Log($"damage: {damage.amount}");
         }
 
         // use "ref" keyword if component modification is intended
-        [EcsSystem]
-        public void ApplyVelocity(UpdatePhase update, Velocity velocity, ref Position position)
+        [Update]
+        public void ApplyVelocity(UpdateAttribute update, Velocity velocity, ref Position position)
         {
-            position.value += velocity.value * update.dt;
+            position.value += velocity.value * Time.deltaTime;
         }
 
         //  "Entity" (built-in type) parameter can be passed before components, if component access is not enough and you need to manipulate matched entity
-        [EcsSystem]
-        public void DoOperations(UpdatePhase update, Entity entity, ref Velocity velocity, ref Position position)
+        [Update]
+        public void DoOperations(UpdateAttribute update, Entity entity, ref Velocity velocity, ref Position position)
         {
             if (velocity.value.magnitude > 299_792_458)
             {
@@ -158,8 +157,8 @@ namespace Kk.BusyEcs
         }
 
         // access another entity by reference
-        [EcsSystem]
-        public void AccessAnotherEntity1(UpdatePhase _, Entity entity, Damage damage)
+        [Update]
+        public void AccessAnotherEntity1(Entity entity, Damage damage)
         {
             //  damage.target is EntityRef
             bool refValidAndCriteriaMatch = damage.target.Match((Entity target, ref Health health, ref Armor armor) =>
@@ -171,8 +170,8 @@ namespace Kk.BusyEcs
         }
 
         // access another reference by reference
-        [EcsSystem]
-        public void AccessAnotherEntity2(UpdatePhase _, Entity entity, Damage damage)
+        [Update]
+        public void AccessAnotherEntity2(Entity entity, Damage damage)
         {
             if (damage.target.Deref(out Entity target))
             {
@@ -186,8 +185,8 @@ namespace Kk.BusyEcs
         }
 
         // explicit querying of another entities by component set (what is EcsFilter used for in vanilla)
-        [EcsSystem]
-        public void SubQuery(UpdatePhase _, Entity entity, Explosion explosion)
+        [Update]
+        public void SubQuery(Entity entity, Explosion explosion)
         {
             Vector3 explosionPos = entity.Get<Position>().value;
 

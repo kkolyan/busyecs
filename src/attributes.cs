@@ -14,18 +14,14 @@ namespace Kk.BusyEcs
     }
 
 
-    [AttributeUsage(AttributeTargets.Struct)]
+    [AttributeUsage(AttributeTargets.Class)]
     public class EcsPhaseAttribute : Attribute { }
 
 
     [AttributeUsage(AttributeTargets.Class)]
-    public class EcsSystemClassAttribute : Attribute { }
+    public class EcsSystemAttribute : Attribute { }
 
 
     [AttributeUsage(AttributeTargets.Field)]
     public class InjectAttribute : Attribute { }
-
-
-    [AttributeUsage(AttributeTargets.Method)]
-    public class EcsSystem : Attribute { }
 }

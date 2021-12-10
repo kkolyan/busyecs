@@ -83,7 +83,6 @@ namespace Kk.BusyEcs
             return NaiveEcsContainer.ForEntity(
                 callback.Method,
                 _world,
-                0,
                 objects => { callback.DynamicInvoke(objects); },
                 _id
             );

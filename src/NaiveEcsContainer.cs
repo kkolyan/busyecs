@@ -13,24 +13,19 @@ namespace Kk.BusyEcs
         private readonly Dictionary<Type, List<PhaseHandler>> _byPhase = new Dictionary<Type, List<PhaseHandler>>();
         private readonly EcsSystems _ecsSystems;
 
-        internal NaiveEcsContainer(Dictionary<Type, object> services, List<Assembly> assemblies)
+        internal NaiveEcsContainer(Dictionary<Type, object> services, List<Assembly> assemblies, EcsSystems ecsSystems)
         {
+            _ecsSystems = ecsSystems ?? new EcsSystems(new EcsWorld());
             services[typeof(IEnv)] = this;
             try
             {
                 List<Type> systemClasses = new List<Type>();
-                HashSet<Type> phases = new HashSet<Type>();
                 foreach (Assembly assembly in assemblies)
                 {
-                    if (assembly.GetName().Name.StartsWith("Microsoft"))
-                    {
-                        continue;
-                    }
-
                     Debug.Log($"Scanning assembly: {assembly}");
                     foreach (Type type in assembly.GetTypes())
                     {
-                        if (type.GetCustomAttribute<EcsSystemClassAttribute>() != null)
+                        if (type.GetCustomAttribute<EcsSystemAttribute>() != null)
                         {
                             systemClasses.Add(type);
                         }
@@ -40,18 +35,15 @@ namespace Kk.BusyEcs
                         {
                             _worldRequirements[type] = ecsWorldAttribute.name;
                         }
-
-                        if (type.GetCustomAttribute<EcsPhaseAttribute>() != null)
-                        {
-                            phases.Add(type);
-                        }
                     }
                 }
 
-                _ecsSystems = new EcsSystems(new EcsWorld());
                 foreach (KeyValuePair<Type, string> worldRequirement in _worldRequirements)
                 {
-                    _ecsSystems.AddWorld(new EcsWorld(), worldRequirement.Value);
+                    if (_ecsSystems.GetWorld(worldRequirement.Value) == null)
+                    {
+                        _ecsSystems.AddWorld(new EcsWorld(), worldRequirement.Value);
+                    }
                 }
 
                 foreach (Type type in systemClasses)
@@ -71,12 +63,17 @@ namespace Kk.BusyEcs
                         }
                     }
 
-                    foreach (MethodInfo method in type.GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public))
+                    foreach (MethodInfo method in type.GetMethods(BindingFlags.Instance | BindingFlags.Public))
                     {
-                        EcsSystem ecsSystem = method.GetCustomAttribute<EcsSystem>();
-                        if (ecsSystem != null)
+                        foreach (Attribute attribute in method.GetCustomAttributes())
                         {
-                            Type phaseType = method.GetParameters()[0].ParameterType;
+                            Type phaseType = attribute.GetType();
+
+                            if (phaseType.GetCustomAttribute<EcsPhaseAttribute>() == null)
+                            {
+                                Debug.Log($"ignoring attribute {phaseType}, because it's not attributed with [EcsPhase]. method: {HandlerName(method)}");
+                                continue;
+                            }
 
                             if (!_byPhase.TryGetValue(phaseType, out var handlersOfType))
                             {
@@ -84,32 +81,24 @@ namespace Kk.BusyEcs
                                 _byPhase[phaseType] = handlersOfType;
                             }
 
-                            if (phaseType.GetCustomAttribute<EcsPhaseAttribute>() == null)
-                            {
-                                throw new Exception($"malformed ES method: {method}. " +
-                                                    $"first argument should be a struct attributed with [{nameof(EcsPhaseAttribute)}]");
-                            }
-
                             if (method.GetParameters().Length == 1)
                             {
                                 handlersOfType.Add(new PhaseHandler(
                                     HandlerName(method),
-                                    o => { method.Invoke(systemInstance, new[] { o }); }
+                                    () => { method.Invoke(systemInstance, Array.Empty<object>()); }
                                 ));
                             }
                             else
                             {
                                 handlersOfType.Add(new PhaseHandler(
                                         HandlerName(method),
-                                        phase =>
+                                        () =>
                                         {
                                             ForEachInFilter(
                                                 method,
                                                 _ecsSystems,
-                                                skipParams: 1,
                                                 parameterValues =>
                                                 {
-                                                    parameterValues[0] = phase;
                                                     try
                                                     {
                                                         method.Invoke(systemInstance, parameterValues);
@@ -152,26 +141,26 @@ namespace Kk.BusyEcs
         private struct PhaseHandler
         {
             public string name;
-            public Action<object> action;
+            public Action action;
 
-            public PhaseHandler(string name, Action<object> action)
+            public PhaseHandler(string name, Action action)
             {
                 this.name = name;
                 this.action = action;
             }
         }
 
-        private static void ForEachInFilter(MethodInfo method, EcsSystems ecsSystems, int skipParams, Action<object[]> callback)
+        private static void ForEachInFilter(MethodInfo method, EcsSystems ecsSystems, Action<object[]> callback)
         {
-            int extraSkip = SupplyEntity(method, skipParams) ? 1 : 0;
+            int extraSkip = SupplyEntity(method) ? 1 : 0;
 
             void WithWorld(EcsWorld world)
             {
                 object filterMask = typeof(EcsWorld).GetMethod(nameof(EcsWorld.Filter))
-                    .MakeGenericMethod(DropByRef(method.GetParameters()[skipParams + extraSkip].ParameterType))
+                    .MakeGenericMethod(DropByRef(method.GetParameters()[extraSkip].ParameterType))
                     .Invoke(world, Array.Empty<object>());
 
-                for (var i = skipParams + 1 + extraSkip; i < method.GetParameters().Length; i++)
+                for (var i = 1 + extraSkip; i < method.GetParameters().Length; i++)
                 {
                     ParameterInfo parameter = method.GetParameters()[i];
                     filterMask = typeof(EcsFilter.Mask).GetMethod(nameof(EcsFilter.Mask.Inc))
@@ -184,7 +173,7 @@ namespace Kk.BusyEcs
 
                 foreach (int entity in filter)
                 {
-                    ForEntity(method, world, skipParams, callback, entity);
+                    ForEntity(method, world, callback, entity);
                 }
             }
 
@@ -207,15 +196,15 @@ namespace Kk.BusyEcs
 
         public static bool ForEntity(MethodInfo method,
             EcsWorld world,
-            int skipParams,
             Action<object[]> callback,
             int entity)
         {
+            int skipParams = 0;
             var parameterValues = new object[method.GetParameters().Length];
-            if (SupplyEntity(method, skipParams))
+            if (SupplyEntity(method))
             {
-                parameterValues[skipParams] = new Entity(world, entity);
-                skipParams++;
+                parameterValues[0] = new Entity(world, entity);
+                skipParams = 1;
             }
 
             for (var i = skipParams; i < method.GetParameters().Length; i++)
@@ -254,34 +243,27 @@ namespace Kk.BusyEcs
             return true;
         }
 
-        private static bool SupplyEntity(MethodInfo method, int skipParams)
+        private static bool SupplyEntity(MethodInfo method)
         {
-            return skipParams >= 0 && method.GetParameters().Length > skipParams &&
-                   method.GetParameters()[skipParams].ParameterType == typeof(Entity);
+            return method.GetParameters().Length > 0 && method.GetParameters()[0].ParameterType == typeof(Entity);
         }
 
-        public void Execute<T>(T phase) where T : struct
+        public void Execute<T>() where T : Attribute
         {
             if (_byPhase.TryGetValue(typeof(T), out var actions))
             {
                 foreach (PhaseHandler action in actions)
                 {
-                    action.action(phase);
+                    action.action();
                 }
             }
-        }
-
-        public EcsSystems GetWorlds()
-        {
-            return _ecsSystems;
         }
 
         private void QueryInternal(Delegate callback)
         {
             ForEachInFilter(
                 callback.Method,
-                _ecsSystems,
-                skipParams: 0, callback:
+                _ecsSystems, callback:
                 paramValues => callback.DynamicInvoke(paramValues)
             );
         }
