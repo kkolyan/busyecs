@@ -1,16 +1,17 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using Leopotam.EcsLite;
+using UnityEngine;
 
 namespace Kk.BusyEcs
 {
     public class EcsContainerBuilder
     {
+        private readonly Dictionary<Type, string> _worldRequirements = new Dictionary<Type, string>();
         private Dictionary<Type, object> _services = new Dictionary<Type, object>();
-        private List<Assembly> _assemblies = new List<Assembly>();
         private EcsSystems _ecsSystems;
+        private List<Type> _systemClasses = new List<Type>();
 
         public EcsContainerBuilder Injectable(object service, Type overrideType = null)
         {
@@ -30,7 +31,28 @@ namespace Kk.BusyEcs
 
         public EcsContainerBuilder Scan(Assembly assembly)
         {
-            _assemblies.Add(assembly);
+            Debug.Log($"Scanning assembly: {assembly}");
+            foreach (Type type in assembly.GetTypes())
+            {
+                ScanType(type);
+            }
+
+            return this;
+        }
+
+        public EcsContainerBuilder ScanType(Type type)
+        {
+            if (type.GetCustomAttribute<EcsSystemAttribute>() != null)
+            {
+                _systemClasses.Add(type);
+            }
+
+            EcsWorldAttribute ecsWorldAttribute = type.GetCustomAttribute<EcsWorldAttribute>();
+            if (ecsWorldAttribute != null)
+            {
+                _worldRequirements[type] = ecsWorldAttribute.name;
+            }
+
             return this;
         }
 
@@ -43,7 +65,7 @@ namespace Kk.BusyEcs
 
         public IEcsContainer End()
         {
-            return new NaiveEcsContainer(_services, _assemblies.Distinct().ToList(), _ecsSystems);
+            return new NaiveEcsContainer(_services, _systemClasses, _ecsSystems, _worldRequirements);
         }
     }
 }

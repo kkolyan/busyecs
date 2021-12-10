@@ -9,35 +9,17 @@ namespace Kk.BusyEcs
 {
     internal partial class NaiveEcsContainer : IEcsContainer, IEnv
     {
-        private readonly Dictionary<Type, string> _worldRequirements = new Dictionary<Type, string>();
+        private readonly Dictionary<Type, string> _worldRequirements;
         private readonly Dictionary<Type, List<PhaseHandler>> _byPhase = new Dictionary<Type, List<PhaseHandler>>();
         private readonly EcsSystems _ecsSystems;
 
-        internal NaiveEcsContainer(Dictionary<Type, object> services, List<Assembly> assemblies, EcsSystems ecsSystems)
+        internal NaiveEcsContainer(Dictionary<Type, object> services, List<Type> systemClasses, EcsSystems ecsSystems, Dictionary<Type, string> worldRequirements)
         {
+            _worldRequirements = worldRequirements;
             _ecsSystems = ecsSystems ?? new EcsSystems(new EcsWorld());
             services[typeof(IEnv)] = this;
             try
             {
-                List<Type> systemClasses = new List<Type>();
-                foreach (Assembly assembly in assemblies)
-                {
-                    Debug.Log($"Scanning assembly: {assembly}");
-                    foreach (Type type in assembly.GetTypes())
-                    {
-                        if (type.GetCustomAttribute<EcsSystemAttribute>() != null)
-                        {
-                            systemClasses.Add(type);
-                        }
-
-                        EcsWorldAttribute ecsWorldAttribute = type.GetCustomAttribute<EcsWorldAttribute>();
-                        if (ecsWorldAttribute != null)
-                        {
-                            _worldRequirements[type] = ecsWorldAttribute.name;
-                        }
-                    }
-                }
-
                 foreach (KeyValuePair<Type, string> worldRequirement in _worldRequirements)
                 {
                     if (_ecsSystems.GetWorld(worldRequirement.Value) == null)
@@ -81,7 +63,7 @@ namespace Kk.BusyEcs
                                 _byPhase[phaseType] = handlersOfType;
                             }
 
-                            if (method.GetParameters().Length == 1)
+                            if (method.GetParameters().Length <= 0)
                             {
                                 handlersOfType.Add(new PhaseHandler(
                                     HandlerName(method),
@@ -153,16 +135,22 @@ namespace Kk.BusyEcs
         private static void ForEachInFilter(MethodInfo method, EcsSystems ecsSystems, Action<object[]> callback)
         {
             int extraSkip = SupplyEntity(method) ? 1 : 0;
+            
+            ParameterInfo[] parameters = method.GetParameters();
+            if (parameters.Length - extraSkip <= 0)
+            {
+                throw new Exception("this method shouldn't be called for method without filters");
+            }
 
             void WithWorld(EcsWorld world)
             {
                 object filterMask = typeof(EcsWorld).GetMethod(nameof(EcsWorld.Filter))
-                    .MakeGenericMethod(DropByRef(method.GetParameters()[extraSkip].ParameterType))
+                    .MakeGenericMethod(DropByRef(parameters[extraSkip].ParameterType))
                     .Invoke(world, Array.Empty<object>());
 
-                for (var i = 1 + extraSkip; i < method.GetParameters().Length; i++)
+                for (var i = 1 + extraSkip; i < parameters.Length; i++)
                 {
-                    ParameterInfo parameter = method.GetParameters()[i];
+                    ParameterInfo parameter = parameters[i];
                     filterMask = typeof(EcsFilter.Mask).GetMethod(nameof(EcsFilter.Mask.Inc))
                         .MakeGenericMethod(DropByRef(parameter.ParameterType))
                         .Invoke(filterMask, Array.Empty<object>());
