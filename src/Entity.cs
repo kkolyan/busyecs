@@ -87,5 +87,11 @@ namespace Kk.BusyEcs
                 _id
             );
         }
+
+        public void GetRaw(out EcsWorld world, out int entity)
+        {
+            world = _world;
+            entity = _id;
+        }
     }
 }
