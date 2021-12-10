@@ -28,31 +28,23 @@ namespace Kk.BusyEcs
                     }
 
                     Debug.Log($"Scanning assembly: {assembly}");
-                    try
+                    foreach (Type type in assembly.GetTypes())
                     {
-                        foreach (Type type in assembly.GetTypes())
+                        if (type.GetCustomAttribute<EcsSystemClassAttribute>() != null)
                         {
-                            if (type.GetCustomAttribute<EcsSystemClassAttribute>() != null)
-                            {
-                                systemClasses.Add(type);
-                            }
-
-                            EcsWorldAttribute ecsWorldAttribute = type.GetCustomAttribute<EcsWorldAttribute>();
-                            if (ecsWorldAttribute != null)
-                            {
-                                _worldRequirements[type] = ecsWorldAttribute.name;
-                            }
-
-                            if (type.GetCustomAttribute<EcsPhaseAttribute>() != null)
-                            {
-                                phases.Add(type);
-                            }
+                            systemClasses.Add(type);
                         }
-                    }
-                    catch (Exception e)
-                    {
-                        Debug.LogWarning("Failed to load assembly");
-                        throw;
+
+                        EcsWorldAttribute ecsWorldAttribute = type.GetCustomAttribute<EcsWorldAttribute>();
+                        if (ecsWorldAttribute != null)
+                        {
+                            _worldRequirements[type] = ecsWorldAttribute.name;
+                        }
+
+                        if (type.GetCustomAttribute<EcsPhaseAttribute>() != null)
+                        {
+                            phases.Add(type);
+                        }
                     }
                 }
 
