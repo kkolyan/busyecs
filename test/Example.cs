@@ -21,7 +21,7 @@ namespace Kk.BusyEcs
 
         private void Start()
         {
-            _ecs = new EsContainerBuilder()
+            _ecs = new EcsContainerBuilder()
                 // register any services for DI
                 .Injectable(new SomeService())
                 .End();
