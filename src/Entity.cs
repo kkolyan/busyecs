@@ -8,6 +8,16 @@ namespace Kk.BusyEcs
         internal readonly EcsWorld world;
         internal readonly int id;
 
+        internal object[] Components
+        {
+            get
+            {
+                object[] list = new object[world.GetComponentsCount(id)];
+                world.GetComponents(id, ref list);
+                return list;
+            }
+        }
+
         public Entity(EcsWorld world, int id)
         {
             this.world = world;
