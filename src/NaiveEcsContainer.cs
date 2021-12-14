@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Kk.BusyEcs
 {
-    internal partial class NaiveEcsContainer : IEcsContainer, IEnv
+    internal partial class NaiveEcsContainer : IEcsContainer
     {
         private readonly Dictionary<Type, string> _worldRequirements;
         private readonly Dictionary<Type, List<PhaseHandler>> _byPhase = new Dictionary<Type, List<PhaseHandler>>();
@@ -15,6 +15,7 @@ namespace Kk.BusyEcs
 
         internal NaiveEcsContainer(Dictionary<Type, object> services, List<Type> systemClasses, EcsSystems ecsSystems, Dictionary<Type, string> worldRequirements)
         {
+            Entity.env = this;
             _worldRequirements = worldRequirements;
             _ecsSystems = ecsSystems ?? new EcsSystems(new EcsWorld());
             services[typeof(IEnv)] = this;
@@ -253,6 +254,16 @@ namespace Kk.BusyEcs
                 callback.Method,
                 _ecsSystems, callback:
                 paramValues => callback.DynamicInvoke(paramValues)
+            );
+        }
+
+        private bool MatchInternal(Entity entity, Delegate callback)
+        {
+            return ForEntity(
+                callback.Method,
+                entity.world,
+                objects => { callback.DynamicInvoke(objects); },
+                entity.id
             );
         }
 

@@ -5,54 +5,54 @@ namespace Kk.BusyEcs
 {
     public readonly partial struct Entity : IEquatable<Entity>
     {
-        private readonly EcsWorld _world;
-        private readonly int _id;
+        internal readonly EcsWorld world;
+        internal readonly int id;
 
         public Entity(EcsWorld world, int id)
         {
-            _world = world;
-            _id = id;
+            this.world = world;
+            this.id = id;
         }
 
         public EntityRef AsRef()
         {
-            return new EntityRef(_world.PackEntityWithWorld(_id));
+            return new EntityRef(world.PackEntityWithWorld(id));
         }
 
         public ref T Add<T>() where T : struct
         {
-            return ref _world.GetPool<T>().Add(_id);
+            return ref world.GetPool<T>().Add(id);
         }
 
         public Entity Add<T>(in T initialState) where T : struct
         {
-            _world.GetPool<T>().Add(_id) = initialState;
+            world.GetPool<T>().Add(id) = initialState;
             return this;
         }
 
         public void DelEntity()
         {
-            _world.DelEntity(_id);
+            world.DelEntity(id);
         }
 
         public void Del<T>() where T : struct
         {
-            _world.GetPool<T>().Del(_id);
+            world.GetPool<T>().Del(id);
         }
 
         public ref T Get<T>() where T : struct
         {
-            return ref _world.GetPool<T>().Get(_id);
+            return ref world.GetPool<T>().Get(id);
         }
 
         public bool Has<T>() where T : struct
         {
-            return _world.GetPool<T>().Has(_id);
+            return world.GetPool<T>().Has(id);
         }
         
         public bool Equals(Entity other)
         {
-            return Equals(_world, other._world) && _id == other._id;
+            return Equals(world, other.world) && id == other.id;
         }
 
         public override bool Equals(object obj)
@@ -64,7 +64,7 @@ namespace Kk.BusyEcs
         {
             unchecked
             {
-                return ((_world != null ? _world.GetHashCode() : 0) * 397) ^ _id;
+                return ((world != null ? world.GetHashCode() : 0) * 397) ^ id;
             }
         }
 
@@ -78,20 +78,10 @@ namespace Kk.BusyEcs
             return !(a == b);
         }
 
-        private bool MatchInternal(Delegate callback)
-        {
-            return NaiveEcsContainer.ForEntity(
-                callback.Method,
-                _world,
-                objects => { callback.DynamicInvoke(objects); },
-                _id
-            );
-        }
-
         public void GetRaw(out EcsWorld world, out int entity)
         {
-            world = _world;
-            entity = _id;
+            world = this.world;
+            entity = id;
         }
     }
 }

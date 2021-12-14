@@ -34,14 +34,21 @@
         <button onclick="onGenClick()">Generate</button>
     </div>
     <div>
-        <h3>IEnv.cs</h3>
+        <h3>IEnv.cs</h3>        
         <textarea id="IEnv" rows="10" cols="100" readonly wrap="off"></textarea>
+        
         <h3>NaiveEcsContainer.Query.cs</h3>
         <textarea id="NaiveEcsContainer.Query" rows="10" cols="100" readonly wrap="off"></textarea>
+        
+        <h3>NaiveEcsContainer.Match.cs</h3>
+        <textarea id="NaiveEcsContainer.Match" rows="10" cols="100" readonly wrap="off"></textarea>
+        
         <h3>NaiveEcsContainer.NewEntity.cs</h3>
         <textarea id="NaiveEcsContainer.NewEntity" rows="10" cols="100" readonly wrap="off"></textarea>
+        
         <h3>Entity.Match.cs</h3>
         <textarea id="Entity.Match" rows="10" cols="100" readonly wrap="off"></textarea>
+        
         <h3>EntityRef.Match.cs</h3>
         <textarea id="EntityRef.Match" rows="10" cols="100" readonly wrap="off"></textarea>
     </div>
@@ -75,6 +82,8 @@ namespace Kk.BusyEcs
     let gsig = join(", ", 1, querySize, i => "T" + i);
     let where = join(" ", 1, querySize, i => "where T" + i + " : struct");
 %>
+        bool Match<<%= gsig %>>(Entity entity, SimpleCallback<<%= gsig %>> callback) <%=where%>;
+        bool Match<<%= gsig %>>(Entity entity, EntityCallback<<%= gsig %>> callback) <%=where%>;
         void Query<<%= gsig %>>(SimpleCallback<<%=gsig%>> callback) <%=where%>;
         void Query<<%= gsig %>>(EntityCallback<<%=gsig%>> callback) <%=where%>;
 <% } -%>
@@ -119,6 +128,24 @@ namespace Kk.BusyEcs
         `});
         
         
+        items.push({ name: "NaiveEcsContainer.Match", tpl: `
+namespace Kk.BusyEcs
+{
+    internal partial class NaiveEcsContainer
+    {
+<% for (let querySize = 1; querySize <= data.maxQuerySize; querySize++) { -%>
+<%
+    let gsig = join(", ", 1, querySize, i => "T" + i);
+    let where = join(" ", 1, querySize, i => "where T" + i + " : struct");
+%>
+        public bool Match<<%= gsig %>>(Entity entity, SimpleCallback<<%= gsig %>> callback) <%=where%> => MatchInternal(entity, callback);
+        public bool Match<<%= gsig %>>(Entity entity, EntityCallback<<%= gsig %>> callback) <%=where%> => MatchInternal(entity, callback);
+<% } -%>
+    }
+}
+        `});
+        
+        
         items.push({ name: "NaiveEcsContainer.NewEntity", tpl: `
 namespace Kk.BusyEcs
 {
@@ -139,19 +166,18 @@ namespace Kk.BusyEcs
         
         
         items.push({ name: "Entity.Match", tpl: `
-        using System;
-
 namespace Kk.BusyEcs
 {
     public readonly partial struct Entity
     {
+        internal static IEnv env;
 <% for (let querySize = 1; querySize <= data.maxQuerySize; querySize++) { -%>
 <%
     let gsig = join(", ", 1, querySize, i => "T" + i);
     let where = join(" ", 1, querySize, i => "where T" + i + " : struct");
 %>
-        public bool Match<<%=gsig%>>(SimpleCallback<<%=gsig%>> callback) <%=where%> => MatchInternal(callback);
-        public bool Match<<%=gsig%>>(EntityCallback<<%=gsig%>> callback) <%=where%> => MatchInternal(callback);
+        public bool Match<<%=gsig%>>(SimpleCallback<<%=gsig%>> callback) <%=where%> => env.Match(this, callback);
+        public bool Match<<%=gsig%>>(EntityCallback<<%=gsig%>> callback) <%=where%> => env.Match(this, callback);
 <% } -%>
     }
 }
@@ -159,8 +185,6 @@ namespace Kk.BusyEcs
         
         
         items.push({ name: "EntityRef.Match", tpl: `
-        using System;
-
 namespace Kk.BusyEcs
 {
     public readonly partial struct EntityRef
@@ -170,8 +194,8 @@ namespace Kk.BusyEcs
     let gsig = join(", ", 1, querySize, i => "T" + i);
     let where = join(" ", 1, querySize, i => "where T" + i + " : struct");
 %>
-        public bool Match<<%=gsig%>>(SimpleCallback<<%=gsig%>> callback) <%=where%> => MatchInternal(callback);
-        public bool Match<<%=gsig%>>(EntityCallback<<%=gsig%>> callback) <%=where%> => MatchInternal(callback);
+        public bool Match<<%=gsig%>>(SimpleCallback<<%=gsig%>> callback) <%=where%> => Deref(out Entity entity) && entity.Match(callback);
+        public bool Match<<%=gsig%>>(EntityCallback<<%=gsig%>> callback) <%=where%> => Deref(out Entity entity) && entity.Match(callback);
 <% } -%>
     }
 }

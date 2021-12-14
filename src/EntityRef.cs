@@ -23,20 +23,5 @@ namespace Kk.BusyEcs
             result = new Entity(world, id);
             return true;
         }
-
-        private bool MatchInternal(Delegate callback)
-        {
-            if (!_packed.Unpack(out EcsWorld world, out int entity))
-            {
-                return false;
-            }
-
-            return NaiveEcsContainer.ForEntity(
-                callback.Method,
-                world,
-                objects => { callback.DynamicInvoke(objects); },
-                entity
-            );
-        }
     }
 }
