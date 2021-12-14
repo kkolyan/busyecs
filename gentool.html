@@ -1,0 +1,186 @@
+
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LeoECS Filters generator</title>
+    <style>
+        html {
+            font-family: monospace;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+    </style>
+</head>
+<script src="https://cdn.jsdelivr.net/npm/ejs@3.0.1/ejs.min.js"></script>
+
+<body>
+<div class="container">
+    <div>
+        <label>IEnv.Query parameters count</label>
+        <input id="maxQuerySize" type="number" value="4" />
+    </div>
+    <div>
+        <label>IEnv.NewEntity parameters count</label>
+        <input id="maxEntityInitComp" type="number" value="8" />
+    </div>
+    <div>
+        <button onclick="onGenClick()">Generate</button>
+    </div>
+    <div>
+        <h3>IEnv.cs</h3>
+        <textarea id="IEnv" rows="10" cols="100" readonly wrap="off"></textarea>
+        <h3>NaiveEcsContainer.Query.cs</h3>
+        <textarea id="NaiveEcsContainer.Query" rows="10" cols="100" readonly wrap="off"></textarea>
+        <h3>NaiveEcsContainer.NewEntity.cs</h3>
+        <textarea id="NaiveEcsContainer.NewEntity" rows="10" cols="100" readonly wrap="off"></textarea>
+        <h3>Entity.Match.cs</h3>
+        <textarea id="Entity.Match" rows="10" cols="100" readonly wrap="off"></textarea>
+        <h3>EntityRef.Match.cs</h3>
+        <textarea id="EntityRef.Match" rows="10" cols="100" readonly wrap="off"></textarea>
+    </div>
+</div>
+</body>
+
+<script>
+    const join = (separator, begin, end, generate) => {
+        let s = ""
+        for (let i = begin; i <= end; i++) {
+            if (i > begin) s += separator;
+            s += generate(i);
+        }
+        return s;
+    }
+    
+    const onGenClick = () => {
+        const maxQuerySize = +document.getElementById('maxQuerySize').value
+        const maxEntityInitComp = +document.getElementById('maxEntityInitComp').value
+        
+        let items = [];
+        
+        
+        items.push({ name: "IEnv", tpl: `
+namespace Kk.BusyEcs
+{
+    public interface IEnv
+    {
+<% for (let querySize = 1; querySize <= data.maxQuerySize; querySize++) { -%>
+<%
+    let gsig = join(", ", 1, querySize, i => "T" + i);
+    let where = join(" ", 1, querySize, i => "where T" + i + " : struct");
+%>
+        void Query<<%= gsig %>>(SimpleCallback<<%=gsig%>> callback) <%=where%>;
+        void Query<<%= gsig %>>(EntityCallback<<%=gsig%>> callback) <%=where%>;
+<% } -%>
+
+<% for (let querySize = 1; querySize <= data.maxEntityInitComp; querySize++) { -%>
+<%
+    let gsig = join(", ", 1, querySize, i => "T" + i);
+    let where = join(" ", 1, querySize, i => "where T" + i + " : struct");
+    let sig = join(", ", 1, querySize, i=> "in T" + i + " c" + i);    
+-%>
+        Entity NewEntity<<%=gsig%>>(<%=sig%>) <%=where %>;
+<% } -%>
+    }
+    
+<% for (let querySize = 1; querySize <= data.maxQuerySize; querySize++) { -%>
+<%
+    let gsig = join(", ", 1, querySize, i => "T" + i);
+    let sig = join(", ", 1, querySize, i=> "ref T" + i + " c" + i);
+%>
+    public delegate void SimpleCallback<<%=gsig%>>(<%=sig%>);
+    public delegate void EntityCallback<<%=gsig%>>(Entity entity, <%=sig%>);
+<% } -%>
+}
+        `});
+        
+        
+        items.push({ name: "NaiveEcsContainer.Query", tpl: `
+namespace Kk.BusyEcs
+{
+    internal partial class NaiveEcsContainer
+    {
+<% for (let querySize = 1; querySize <= data.maxQuerySize; querySize++) { -%>
+<%
+    let gsig = join(", ", 1, querySize, i => "T" + i);
+    let where = join(" ", 1, querySize, i => "where T" + i + " : struct");
+%>
+        public void Query<<%= gsig %>>(SimpleCallback<<%=gsig%>> callback) <%=where%> => QueryInternal(callback);
+        public void Query<<%= gsig %>>(EntityCallback<<%=gsig%>> callback) <%=where%> => QueryInternal(callback);
+<% } -%>
+    }
+}
+        `});
+        
+        
+        items.push({ name: "NaiveEcsContainer.NewEntity", tpl: `
+namespace Kk.BusyEcs
+{
+    internal partial class NaiveEcsContainer
+    {
+<% for (let querySize = 1; querySize <= data.maxEntityInitComp; querySize++) { -%>
+<%
+    let gsig = join(", ", 1, querySize, i => "T" + i);
+    let where = join(" ", 1, querySize, i => "where T" + i + " : struct");
+    let sig = join(", ", 1, querySize, i=> "in T" + i + " c" + i);
+    let sigValues = join(", ", 1, querySize, i => "c"+i);
+-%>
+        public Entity NewEntity<<%=gsig%>>(<%=sig%>) <%=where %> => NewEntityInternal(<%=sigValues%>);
+<% } -%>
+    }
+}
+        `});
+        
+        
+        items.push({ name: "Entity.Match", tpl: `
+        using System;
+
+namespace Kk.BusyEcs
+{
+    public readonly partial struct Entity
+    {
+<% for (let querySize = 1; querySize <= data.maxQuerySize; querySize++) { -%>
+<%
+    let gsig = join(", ", 1, querySize, i => "T" + i);
+    let where = join(" ", 1, querySize, i => "where T" + i + " : struct");
+%>
+        public bool Match<<%=gsig%>>(SimpleCallback<<%=gsig%>> callback) <%=where%> => MatchInternal(callback);
+        public bool Match<<%=gsig%>>(EntityCallback<<%=gsig%>> callback) <%=where%> => MatchInternal(callback);
+<% } -%>
+    }
+}
+        `})
+        
+        
+        items.push({ name: "EntityRef.Match", tpl: `
+        using System;
+
+namespace Kk.BusyEcs
+{
+    public readonly partial struct EntityRef
+    {
+<% for (let querySize = 1; querySize <= data.maxQuerySize; querySize++) { -%>
+<%
+    let gsig = join(", ", 1, querySize, i => "T" + i);
+    let where = join(" ", 1, querySize, i => "where T" + i + " : struct");
+%>
+        public bool Match<<%=gsig%>>(SimpleCallback<<%=gsig%>> callback) <%=where%> => MatchInternal(callback);
+        public bool Match<<%=gsig%>>(EntityCallback<<%=gsig%>> callback) <%=where%> => MatchInternal(callback);
+<% } -%>
+    }
+}
+        `})
+
+        for (let i = 0; i < items.length; i++) {
+            document.getElementById(items[i].name).innerHTML = ejs.render(items[i].tpl, { data: { maxQuerySize, maxEntityInitComp } }).trim()
+        }
+    }
+</script>
+
+</html>
