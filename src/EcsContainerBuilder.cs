@@ -1,76 +1,45 @@
 using System;
-using System.Collections.Generic;
-using System.Reflection;
+using Kk.BusyEcs.Internal;
 using Leopotam.EcsLite;
-using UnityEngine;
 
 namespace Kk.BusyEcs
 {
     public class EcsContainerBuilder
     {
-        private readonly Dictionary<Type, string> _worldRequirements = new Dictionary<Type, string>();
-        private Dictionary<Type, object> _services = new Dictionary<Type, object>();
-        private EcsSystems _ecsSystems;
-        private List<Type> _systemClasses = new List<Type>();
+        private EcsSystems _explicitWorlds;
+        private readonly IConfigurableEcsContainer _container;
 
-        public EcsContainerBuilder Injectable(object service, Type overrideType = null)
+        public EcsContainerBuilder(EcsMetadata metadata)
         {
-            _services[overrideType ?? service.GetType()] = service;
+            _container = (IConfigurableEcsContainer)Activator.CreateInstance(metadata.ecsContainerClass);
+        }
+
+        /// <summary>
+        /// register things to be injected with `[Inject]` attribute. `Kk.BusyEcs.IEnv` instance is available by default as service
+        /// </summary>
+        /// <param name="service"></param>
+        /// <param name="overrideType"></param>
+        /// <returns></returns>
+        public EcsContainerBuilder AddInjectable(object service, Type overrideType = null)
+        {
+            _container.AddInjectable(service, overrideType);
             return this;
         }
 
-        public EcsContainerBuilder ScanAll()
-        {
-            foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
-            {
-                Scan(assembly);
-            }
 
-            return this;
-        }
-
-        public EcsContainerBuilder Scan(Assembly assembly)
-        {
-            Debug.Log($"Scanning assembly: {assembly}");
-            return ScanTypes(assembly.GetTypes());
-        }
-
-        public EcsContainerBuilder ScanTypes(IEnumerable<Type> types)
-        {
-            foreach (Type type in types)
-            {
-                ScanType(type);
-            }
-
-            return this;
-        }
-
-        public EcsContainerBuilder ScanType(Type type)
-        {
-            if (type.GetCustomAttribute<EcsSystemAttribute>() != null)
-            {
-                _systemClasses.Add(type);
-            }
-
-            EcsWorldAttribute ecsWorldAttribute = type.GetCustomAttribute<EcsWorldAttribute>();
-            if (ecsWorldAttribute != null)
-            {
-                _worldRequirements[type] = ecsWorldAttribute.name;
-            }
-
-            return this;
-        }
-
-        // for LeoECS Lite plugins integration. BusyECS uses it ONLY as worlds container (invokes GetAllNamedWorlds, GetWorld, AddWorld).
+        /// <summary>
+        /// for LeoECS Lite plugins integration. BusyECS uses supplied EcsSystems instance ONLY as worlds container (invokes nothing but GetAllNamedWorlds, GetWorld, AddWorld).
+        /// </summary>
         public EcsContainerBuilder Integrate(EcsSystems ecsSystems)
         {
-            _ecsSystems = ecsSystems;
+            _explicitWorlds = ecsSystems;
             return this;
         }
 
-        public IEcsContainer End()
+        public IEcsContainer Create()
         {
-            return new NaiveEcsContainer(_services, _systemClasses, _ecsSystems, _worldRequirements);
+            _container.Init(_explicitWorlds ?? new EcsSystems(new EcsWorld()));
+            return _container;
         }
     }
 }

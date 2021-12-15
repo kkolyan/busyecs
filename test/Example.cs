@@ -12,19 +12,36 @@ namespace Kk.BusyEcs
     [EcsPhase]
     [AttributeUsage(AttributeTargets.Method)]
     public class Update : Attribute { }
-
+    
+    // define BusyECS project-wide configuration.
+#if UNITY_EDITOR
+    internal static class BusyEcsConfig
+    { 
+        
+        [UnityEditor.InitializeOnLoadMethod]
+        private static void Configure()
+        {
+            // supply reference to the C# assembly where our ECS components and systems resides.
+            // in case if you use asmdefs and your components and systems are distributed among them,
+            // then you have to to specify all of them: by typeofing some class from each, for exampleю
+            // (note that this example assumes that BusyEcsConfig is defined outside of Editor directory)
+            BusyEcs.SetUserAssemblies(typeof(BusyEcsConfig).Assembly);
+        }
+    }
+#endif
+    
     // configure main loop. in Unity main loop is hidden by MonoBehavior scripts abstraction, so use them in case of Unity.
-
+    
     public class ExampleUnityStartup : MonoBehaviour
     {
         private IEcsContainer _ecs;
-
+        
         private void Start()
         {
-            _ecs = new EcsContainerBuilder()
+            _ecs = new EcsContainerBuilder(EcsMetadata.ScanProject())
                 // register any services for DI
-                .Injectable(new SomeService())
-                .End();
+                .AddInjectable(new SomeService())
+                .Create();
 
             // force framework to invoke all system methods attributed with [Start]
             _ecs.Execute<Start>();
