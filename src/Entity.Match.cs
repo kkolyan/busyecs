@@ -2,6 +2,7 @@ namespace Kk.BusyEcs
 {
     public readonly partial struct Entity
     {
+        // assigned from generated ECS container
         internal static IEnv env;
 
         public bool Match<T1>(SimpleCallback<T1> callback) where T1 : struct => env.Match(this, callback);
