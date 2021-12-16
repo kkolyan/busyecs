@@ -43,8 +43,6 @@ namespace Kk.BusyEcs.Internal
                         Debug.LogError(diagnostic);
                         break;
                     case DiagnosticSeverity.Hidden:
-                        Debug.Log(diagnostic);
-                        break;
                     case DiagnosticSeverity.Info:
                         Debug.Log(diagnostic);
                         break;
@@ -57,7 +55,7 @@ namespace Kk.BusyEcs.Internal
             }
             if (!result.Success)
             {
-                return null;
+                throw new Exception("compilation failed. see Unity log.");
             }
             return Assembly.Load(buffer.GetBuffer());
         }

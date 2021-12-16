@@ -14,10 +14,10 @@ namespace Kk.BusyEcs
         private const string CodegenFile = "Assets/BusyECS.generated.cs";
 
         [MenuItem("Busy ECS/Export generated code...")]
-        public static void TestGenerateSystemsGlue()
+        public static void ExportGeneratedCode()
         {
             string exportAs = EditorUtility.SaveFilePanel("Export generated code...", "", "", "cs");
-            if (exportAs != null)
+            if (!string.IsNullOrEmpty(exportAs))
             {
                 File.WriteAllText(exportAs, GenerateCode());
                 int option = EditorUtility.DisplayDialogComplex("Generated code exported", "", "Open file", "Close", "Open file location");
@@ -33,6 +33,7 @@ namespace Kk.BusyEcs
         }
 
         [InitializeOnLoadMethod]
+        [MenuItem("Busy ECS/Reset codegen stubs")]
         private static void EnsureFile()
         {
             File.WriteAllText(CodegenFile,
