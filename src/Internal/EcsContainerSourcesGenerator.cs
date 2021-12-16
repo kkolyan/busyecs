@@ -71,6 +71,7 @@ namespace Kk.BusyEcs.Internal
         {
             string s = "";
             s += "using System;\n";
+            s += "using System.Linq;\n";
             s += "using System.Collections.Generic;\n";
             s += "using Kk.BusyEcs;\n";
             s += "using Leopotam.EcsLite;\n";
@@ -100,7 +101,7 @@ namespace Kk.BusyEcs.Internal
             s += "  private readonly Dictionary<Type, Action> _phaseExecutionByType = new Dictionary<Type, Action>();\n";
             s += "  private EcsSystems worlds;\n";
             s += "  private Dictionary<Type, object> injectables = new Dictionary<Type, object>();\n";
-            s += "  private List<EcsWorld> allWorlds = new List<EcsWorld>();\n";
+            s += "  private EcsWorld[] allWorlds;\n";
 
             foreach (Type systemClass in ctx.systemClasses)
             {
@@ -138,8 +139,10 @@ namespace Kk.BusyEcs.Internal
                 s += "    " + SystemInstanceVar(systemClass) + " = new " + systemClass.FullName + " ();\n";
             }
 
-            foreach (string world in ctx.worlds)
+            s += $"    allWorlds = new EcsWorld[{ctx.worlds.Count}];\n";
+            for (var worldIndex = 0; worldIndex < ctx.worlds.Count; worldIndex++)
             {
+                string world = ctx.worlds[worldIndex];
                 if (world == "")
                 {
                     s += "    " + WorldVar(world) + " = worlds.GetWorld();\n";
@@ -150,7 +153,7 @@ namespace Kk.BusyEcs.Internal
                     s += "    " + WorldVar(world) + " = worlds.GetWorld(\"" + world + "\");\n";
                 }
 
-                s += "    allWorlds.Add(" + WorldVar(world) + ");\n";
+                s += $"    allWorlds[{worldIndex}] = " + WorldVar(world) + ";\n";
 
                 foreach (Type componentType in ctx.components)
                 {
@@ -169,13 +172,16 @@ namespace Kk.BusyEcs.Internal
                 }
             }
 
+            s += "    AddInjectable(this, typeof(IEnv));\n";
+            s += "    typeof(Entity).GetField(\"env\", BindingFlags.NonPublic | BindingFlags.Static).SetValue(null, this);\n";
+            s += "    WorldsKeeper.worlds = Enumerable.Empty<EcsWorld>().Append(worlds.GetWorld()).Concat(worlds.GetAllNamedWorlds().Values).ToArray();\n";
+
             foreach (Injection injection in ctx.injections)
             {
                 s += "    " + SystemInstanceVar(injection.system) + "." + injection.field + " = (" + injection.type.FullName +
                      ") ResolveInjectable<" +
                      injection.type.FullName + ">();\n";
             }
-
             return s;
         }
 
@@ -203,8 +209,6 @@ namespace Kk.BusyEcs.Internal
         {
             long nextVarId = 0;
             string s = "";
-            s += "    AddInjectable(this, typeof(IEnv));\n";
-            s += "    typeof(Entity).GetField(\"env\", BindingFlags.NonPublic | BindingFlags.Static).SetValue(null, this);\n";
             foreach (KeyValuePair<Type, List<MethodInfo>> pair in ctx.systemsByPhase)
             {
                 s += "    _phaseExecutionByType[typeof(" + pair.Key.FullName + ")] = () => {\n";
@@ -340,7 +344,7 @@ namespace Kk.BusyEcs.Internal
                 s += "    var id = w.NewEntity();\n";
                 for (int i = 1; i <= componentCount; i++)
                 {
-                    s += "    w.GetPool<T" + i + ">().Add(id) = c" + i + ";\n";
+                    s += $"    w.GetPool<T{i}>().Add(id) = c{i};\n";
                 }
 
                 s += "    return new Entity(w, id);\n";
@@ -365,7 +369,8 @@ namespace Kk.BusyEcs.Internal
                 }
 
                 s += "  public void Query<" + gsig + ">(SimpleCallback<" + gsig + "> callback)\n" + where + "  {\n";
-                s += "    foreach (EcsWorld w in allWorlds) {\n";
+                s += "    for (int wi = 0; wi < allWorlds.Length; wi++) {\n";
+                s += "      EcsWorld w = allWorlds[wi];\n";
 
                 s += "      EcsFilter filter = w.Filter<T1>()";
                 for (int i = 2; i <= componentCount; i++)
@@ -377,14 +382,14 @@ namespace Kk.BusyEcs.Internal
                 s += "      foreach (var id in filter) {\n";
                 for (int i = 1; i <= componentCount; i++)
                 {
-                    s += $"        if (!w.GetPool<T{i}>().Has(id)) continue;\n";
+                    s += $"        if (!PoolKeeper<T{i}>.byWorld[wi].Has(id)) continue;\n";
                 }
 
                 s += "        callback(";
                 for (int i = 1; i <= componentCount; i++)
                 {
                     if (i > 1) s += ",";
-                    s += "ref w.GetPool<T" + i + ">().Get(id)";
+                    s += $"ref PoolKeeper<T{i}>.byWorld[wi].Get(id)";
                 }
 
                 s += ");\n";
@@ -393,7 +398,8 @@ namespace Kk.BusyEcs.Internal
                 s += "    }\n";
                 s += "  }\n";
                 s += "  public void Query<" + gsig + ">(EntityCallback<" + gsig + "> callback)\n" + where + "  {\n";
-                s += "    foreach (EcsWorld w in allWorlds) {\n";
+                s += "    for (int wi = 0; wi < allWorlds.Length; wi++) {\n";
+                s += "      EcsWorld w = allWorlds[wi];\n";
 
                 s += "      EcsFilter filter = w.Filter<T1>()";
                 for (int i = 2; i <= componentCount; i++)
@@ -405,14 +411,14 @@ namespace Kk.BusyEcs.Internal
                 s += "      foreach (var id in filter) {\n";
                 for (int i = 1; i <= componentCount; i++)
                 {
-                    s += $"        if (!w.GetPool<T{i}>().Has(id)) continue;\n";
+                    s += $"        if (!PoolKeeper<T{i}>.byWorld[wi].Has(id)) continue;\n";
                 }
 
                 s += "        callback(new Entity(w, id), ";
                 for (int i = 1; i <= componentCount; i++)
                 {
                     if (i > 1) s += ",";
-                    s += "ref w.GetPool<T" + i + ">().Get(id)";
+                    s += $"ref PoolKeeper<T{i}>.byWorld[wi].Get(id)";
                 }
 
                 s += ");\n";

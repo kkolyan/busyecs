@@ -9,7 +9,7 @@ namespace Kk.BusyEcs
     {
         
         private static Assembly[] _userAssemblies;
-        public static string SystemOrderLockFile { get; set; }
+        public static string SystemOrderDumpFile { get; set; }
         
         public delegate void SortSystems(MethodInfo[] systems);
         public static SortSystems SystemsOrder { get; set; }
@@ -23,6 +23,12 @@ namespace Kk.BusyEcs
                     "at least one user assembly required. the easiest solution is to add following to builder: " +
                     "\"new EcsContainerFactory(typeof(AnyOfMyMonoBehaviors).Assembly)\"");
             }
+
+            if (array.Length == 1 && array[0].GetName().Name == "Kk.BusyEcs.Test")
+            {
+                return;
+            }
+            
             _userAssemblies = array;
         }
 

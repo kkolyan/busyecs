@@ -14,11 +14,12 @@ namespace Kk.BusyEcs.Test
     public class Update : Attribute { }
     
     // define BusyECS project-wide configuration.
-#if UNITY_EDITOR
     internal static class BusyEcsConfig
-    { 
-        
+    {
+#if UNITY_EDITOR
         [UnityEditor.InitializeOnLoadMethod]
+#endif
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
         private static void Configure()
         {
             // supply reference to the C# assembly where our ECS components and systems resides.
@@ -28,14 +29,13 @@ namespace Kk.BusyEcs.Test
             BusyEcs.SetUserAssemblies(typeof(BusyEcsConfig).Assembly);
         }
     }
-#endif
     
     // configure main loop. in Unity main loop is hidden by MonoBehavior scripts abstraction, so use them in case of Unity.
     
     public class ExampleUnityStartup : MonoBehaviour
     {
         private IEcsContainer _ecs;
-        
+
         private void Start()
         {
             _ecs = new EcsContainerBuilder(EcsMetadata.ScanProject())
