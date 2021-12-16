@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace Kk.BusyEcs
+namespace Kk.BusyEcs.Test
 {
     // define phase attributes you need. Start and Update are enough for simple case.
 
