@@ -12,7 +12,7 @@ namespace Kk.BusyEcs.Internal
         // these constants should be in sync with the parameters of `gentool.html` used to generate BusyEcs classes
         private const int NewEntityMaxComponentCount = 8;
         private const int QueryMaxComponentCount = 4;
-        
+
         public class Phase
         {
             public readonly Type phaseAttribute;
@@ -42,7 +42,11 @@ namespace Kk.BusyEcs.Internal
             Context context = new Context();
             Scan(context, assembliesToScan);
 
-            return new Result(GenerateBody(context), context.systemsByPhase.Select(it => new Phase(it.Key, it.Value)).ToList());
+            ;
+            return new Result(
+                GenerateBody(context),
+                context.phases.Select(phase => new Phase(phase, context.systemsByPhase[phase])).ToList()
+            );
         }
 
         private class Injection
@@ -55,6 +59,7 @@ namespace Kk.BusyEcs.Internal
         private class Context
         {
             public List<Injection> injections = new List<Injection>();
+            public List<Type> phases = new List<Type>();
             public Dictionary<Type, List<MethodInfo>> systemsByPhase = new Dictionary<Type, List<MethodInfo>>();
             public List<Type> systemClasses = new List<Type>();
             public HashSet<Type> components = new HashSet<Type>();
@@ -166,7 +171,8 @@ namespace Kk.BusyEcs.Internal
 
             foreach (Injection injection in ctx.injections)
             {
-                s += "    " + SystemInstanceVar(injection.system) + "." + injection.field + " = (" + injection.type.FullName + ") ResolveInjectable<" +
+                s += "    " + SystemInstanceVar(injection.system) + "." + injection.field + " = (" + injection.type.FullName +
+                     ") ResolveInjectable<" +
                      injection.type.FullName + ">();\n";
             }
 
@@ -535,6 +541,7 @@ namespace Kk.BusyEcs.Internal
                     if (type.GetCustomAttribute<EcsPhaseAttribute>() != null)
                     {
                         ctx.systemsByPhase[type] = new List<MethodInfo>();
+                        ctx.phases.Add(type);
                     }
 
                     if (type.GetCustomAttribute<EcsSystemAttribute>() != null)
