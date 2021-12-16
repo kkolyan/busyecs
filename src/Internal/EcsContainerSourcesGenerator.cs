@@ -611,12 +611,18 @@ namespace Kk.BusyEcs.Internal
                 }
             }
 
-            IComparer<MethodInfo> systemsOrder = BusyEcs.SystemsOrder;
+            BusyEcs.SortSystems systemsOrder = BusyEcs.SystemsOrder;
             if (systemsOrder != null)
             {
                 foreach (List<MethodInfo> systems in ctx.systemsByPhase.Values)
                 {
-                    systems.Sort(systemsOrder);
+                    MethodInfo[] temp = systems.ToArray();
+                    systemsOrder(temp);
+                    systems.Clear();
+                    foreach (MethodInfo system in temp)
+                    {
+                        systems.Add(system);
+                    }
                 }
             }
         }

@@ -7,9 +7,12 @@ namespace Kk.BusyEcs
 {
     public static class BusyEcs
     {
+        
         private static Assembly[] _userAssemblies;
         public static string SystemOrderLockFile { get; set; }
-        public static IComparer<MethodInfo> SystemsOrder { get; set; }
+        
+        public delegate void SortSystems(MethodInfo[] systems);
+        public static SortSystems SystemsOrder { get; set; }
 
         public static void SetUserAssemblies(IEnumerable<Assembly> userAssemblies)
         {
