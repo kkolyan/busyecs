@@ -12,14 +12,28 @@ namespace Kk.BusyEcs.Internal
         // these constants should be in sync with the parameters of `gentool.html` used to generate BusyEcs classes
         private const int NewEntityMaxComponentCount = 8;
         private const int QueryMaxComponentCount = 4;
+        
+        public class Phase
+        {
+            public readonly Type phaseAttribute;
+            public readonly List<MethodInfo> systems;
+
+            public Phase(Type phaseAttribute, List<MethodInfo> systems)
+            {
+                this.phaseAttribute = phaseAttribute;
+                this.systems = systems;
+            }
+        }
 
         public class Result
         {
             public readonly string source;
+            public readonly List<Phase> phases;
 
-            public Result(string source)
+            public Result(string source, List<Phase> phases)
             {
                 this.source = source;
+                this.phases = phases;
             }
         }
 
@@ -28,7 +42,7 @@ namespace Kk.BusyEcs.Internal
             Context context = new Context();
             Scan(context, assembliesToScan);
 
-            return new Result(GenerateBody(context));
+            return new Result(GenerateBody(context), context.systemsByPhase.Select(it => new Phase(it.Key, it.Value)).ToList());
         }
 
         private class Injection

@@ -8,6 +8,7 @@ namespace Kk.BusyEcs
     public static class BusyEcs
     {
         private static Assembly[] _userAssemblies;
+        private static string _systemOrderLockFile;
 
         public static void SetUserAssemblies(IEnumerable<Assembly> userAssemblies)
         {
@@ -26,6 +27,16 @@ namespace Kk.BusyEcs
             SetUserAssemblies(Enumerable.Empty<Assembly>()
                 .Append(userAssembly0)
                 .Concat(userAssembliesN));
+        }
+
+        public static void SetSystemOrderLockFile(string lockFile)
+        {
+            _systemOrderLockFile = lockFile;
+        }
+
+        public static string GetSystemOrderLockFile()
+        {
+            return _systemOrderLockFile;
         }
 
         internal static Assembly[] GetUserAssemblies()
