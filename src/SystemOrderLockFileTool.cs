@@ -11,7 +11,7 @@ namespace Kk.BusyEcs
         [MenuItem("Busy ECS/Generate lock file (experimental)")]
         private static void GenerateLockFile()
         {
-            string lockFile = BusyEcs.GetSystemOrderLockFile();
+            string lockFile = BusyEcs.SystemOrderLockFile;
             if (lockFile != null)
             {
                 string s = "";

@@ -8,7 +8,8 @@ namespace Kk.BusyEcs
     public static class BusyEcs
     {
         private static Assembly[] _userAssemblies;
-        private static string _systemOrderLockFile;
+        public static string SystemOrderLockFile { get; set; }
+        public static IComparer<MethodInfo> SystemsOrder { get; set; }
 
         public static void SetUserAssemblies(IEnumerable<Assembly> userAssemblies)
         {
@@ -21,7 +22,7 @@ namespace Kk.BusyEcs
             }
             _userAssemblies = array;
         }
-        
+
         public static void SetUserAssemblies(Assembly userAssembly0, params Assembly[] userAssembliesN)
         {
             SetUserAssemblies(Enumerable.Empty<Assembly>()
@@ -29,18 +30,8 @@ namespace Kk.BusyEcs
                 .Concat(userAssembliesN));
         }
 
-        public static void SetSystemOrderLockFile(string lockFile)
-        {
-            _systemOrderLockFile = lockFile;
-        }
-
-        public static string GetSystemOrderLockFile()
-        {
-            return _systemOrderLockFile;
-        }
-
         internal static Assembly[] GetUserAssemblies()
-        {   
+        {
             if (_userAssemblies == null)
             {
                 throw new Exception("BusyECS should be initialized with user assemblies");
