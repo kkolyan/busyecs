@@ -74,6 +74,7 @@ namespace Kk.BusyEcs.Internal
             s += "using System.Linq;\n";
             s += "using System.Collections.Generic;\n";
             s += "using Kk.BusyEcs;\n";
+            s += "using Kk.BusyEcs.Internal;\n";
             s += "using Leopotam.EcsLite;\n";
             s += "using System.Reflection;\n";
             s += "[UnityEngine.Scripting.Preserve]\n";
@@ -353,133 +354,143 @@ namespace Kk.BusyEcs.Internal
 
             for (int componentCount = 1; componentCount <= QueryMaxComponentCount; componentCount++)
             {
-                string gsig = "";
-                string where = "";
+                for (int rd = 0; rd <= componentCount; rd++)
+                {  
+                    string gsig = "";
+                    string where = "";
 
-                for (int i = 1; i <= componentCount; i++)
-                {
-                    if (i > 1) gsig += ", ";
+                    for (int i = 1; i <= componentCount; i++)
+                    {
+                        if (i > 1) gsig += ", ";
 
-                    gsig += "T" + i;
+                        gsig += "T" + i;
+                    }
+
+                    for (int i = 1; i <= componentCount; i++)
+                    {
+                        where += "    where T" + i + " : struct \n";
+                    }
+
+                    s += $"  public void Query<{gsig}>(SimpleCallback{rd}<{gsig}> callback)\n{where}  {{\n";
+                    s += "    for (int wi = 0; wi < allWorlds.Length; wi++) {\n";
+                    s += "      EcsWorld w = allWorlds[wi];\n";
+
+                    s += "      EcsFilter filter = w.Filter<T1>()";
+                    for (int i = 2; i <= componentCount; i++)
+                    {
+                        s += ".Inc<T" + i + ">()";
+                    }
+
+                    s += ".End();\n";
+                    s += "      foreach (var id in filter) {\n";
+                    for (int i = 1; i <= componentCount; i++)
+                    {
+                        s += $"        if (!PoolKeeper<T{i}>.byWorld[wi].Has(id)) continue;\n";
+                    }
+
+                    s += "        callback(";
+                    for (int i = 1; i <= componentCount; i++)
+                    {
+                        if (i > 1) s += ", ";
+                        s += i <= rd ? "ref " : "";
+                        s += $"PoolKeeper<T{i}>.byWorld[wi].Get(id)";
+                    }
+
+                    s += ");\n";
+                    s += "      }\n";
+
+                    s += "    }\n";
+                    s += "  }\n";
+                    s += $"  public void Query<{gsig}>(EntityCallback{rd}<{gsig}> callback)\n{@where}  {{\n";
+                    s += "    for (int wi = 0; wi < allWorlds.Length; wi++) {\n";
+                    s += "      EcsWorld w = allWorlds[wi];\n";
+
+                    s += "      EcsFilter filter = w.Filter<T1>()";
+                    for (int i = 2; i <= componentCount; i++)
+                    {
+                        s += ".Inc<T" + i + ">()";
+                    }
+
+                    s += ".End();\n";
+                    s += "      foreach (var id in filter) {\n";
+                    for (int i = 1; i <= componentCount; i++)
+                    {
+                        s += $"        if (!PoolKeeper<T{i}>.byWorld[wi].Has(id)) continue;\n";
+                    }
+
+                    s += "        callback(new Entity(w, id), ";
+                    for (int i = 1; i <= componentCount; i++)
+                    {
+                        if (i > 1) s += ", ";
+                        s += i <= rd ? "ref " : "";
+                        s += $"PoolKeeper<T{i}>.byWorld[wi].Get(id)";
+                    }
+
+                    s += ");\n";
+                    s += "      }\n";
+
+                    s += "    }\n";
+                    s += "  }\n"; 
                 }
-
-                for (int i = 1; i <= componentCount; i++)
-                {
-                    where += "    where T" + i + " : struct \n";
-                }
-
-                s += "  public void Query<" + gsig + ">(SimpleCallback<" + gsig + "> callback)\n" + where + "  {\n";
-                s += "    for (int wi = 0; wi < allWorlds.Length; wi++) {\n";
-                s += "      EcsWorld w = allWorlds[wi];\n";
-
-                s += "      EcsFilter filter = w.Filter<T1>()";
-                for (int i = 2; i <= componentCount; i++)
-                {
-                    s += ".Inc<T" + i + ">()";
-                }
-
-                s += ".End();\n";
-                s += "      foreach (var id in filter) {\n";
-                for (int i = 1; i <= componentCount; i++)
-                {
-                    s += $"        if (!PoolKeeper<T{i}>.byWorld[wi].Has(id)) continue;\n";
-                }
-
-                s += "        callback(";
-                for (int i = 1; i <= componentCount; i++)
-                {
-                    if (i > 1) s += ",";
-                    s += $"ref PoolKeeper<T{i}>.byWorld[wi].Get(id)";
-                }
-
-                s += ");\n";
-                s += "      }\n";
-
-                s += "    }\n";
-                s += "  }\n";
-                s += "  public void Query<" + gsig + ">(EntityCallback<" + gsig + "> callback)\n" + where + "  {\n";
-                s += "    for (int wi = 0; wi < allWorlds.Length; wi++) {\n";
-                s += "      EcsWorld w = allWorlds[wi];\n";
-
-                s += "      EcsFilter filter = w.Filter<T1>()";
-                for (int i = 2; i <= componentCount; i++)
-                {
-                    s += ".Inc<T" + i + ">()";
-                }
-
-                s += ".End();\n";
-                s += "      foreach (var id in filter) {\n";
-                for (int i = 1; i <= componentCount; i++)
-                {
-                    s += $"        if (!PoolKeeper<T{i}>.byWorld[wi].Has(id)) continue;\n";
-                }
-
-                s += "        callback(new Entity(w, id), ";
-                for (int i = 1; i <= componentCount; i++)
-                {
-                    if (i > 1) s += ",";
-                    s += $"ref PoolKeeper<T{i}>.byWorld[wi].Get(id)";
-                }
-
-                s += ");\n";
-                s += "      }\n";
-
-                s += "    }\n";
-                s += "  }\n";
             }
 
             for (int componentCount = 1; componentCount <= QueryMaxComponentCount; componentCount++)
             {
-                string gsig = "";
-                string where = "";
-
-                for (int i = 1; i <= componentCount; i++)
+                for (int rd = 0; rd <= componentCount; rd++)
                 {
-                    if (i > 1) gsig += ", ";
+                    string gsig = "";
+                    string where = "";
 
-                    gsig += "T" + i;
+                    for (int i = 1; i <= componentCount; i++)
+                    {
+                        if (i > 1) gsig += ", ";
+
+                        gsig += "T" + i;
+                    }
+
+                    for (int i = 1; i <= componentCount; i++)
+                    {
+                        where += "    where T" + i + " : struct \n";
+                    }
+
+                    s += $"  public bool Match<{gsig}>(Entity entity, SimpleCallback{rd}<{gsig}> callback)\n{@where}  {{\n";
+                    for (int i = 1; i <= componentCount; i++)
+                    {
+                        s += $"    if (!entity.Has<T{i}>()) return false;\n";
+                    }
+
+                    s += "    callback(";
+                    for (int i = 1; i <= componentCount; i++)
+                    {
+                        if (i > 1) s += ", ";
+                        s += i <= rd ? "ref " : "";
+                        s += $"entity.Get<T{i}>()";
+                    }
+
+                    s += ");\n";
+                    s += "    return true;\n";
+
+                    s += "  }\n";
+
+                    s += $"  public bool Match<{gsig}>(Entity entity, EntityCallback{rd}<{gsig}> callback)\n{@where}  {{\n";
+                    for (int i = 1; i <= componentCount; i++)
+                    {
+                        s += $"    if (!entity.Has<T{i}>()) return false;\n";
+                    }
+
+                    s += "    callback(entity, ";
+                    for (int i = 1; i <= componentCount; i++)
+                    {
+                        if (i > 1) s += ", ";
+                        s += i <= rd ? "ref " : "";
+                        s += $"entity.Get<T{i}>()";
+                    }
+
+                    s += ");\n";
+                    s += "    return true;\n";
+
+                    s += "  }\n";
                 }
-
-                for (int i = 1; i <= componentCount; i++)
-                {
-                    where += "    where T" + i + " : struct \n";
-                }
-
-                s += "  public bool Match<" + gsig + ">(Entity entity, SimpleCallback<" + gsig + "> callback)\n" + where + "  {\n";
-                for (int i = 1; i <= componentCount; i++)
-                {
-                    s += $"    if (!entity.Has<T{i}>()) return false;\n";
-                }
-
-                s += "    callback(";
-                for (int i = 1; i <= componentCount; i++)
-                {
-                    if (i > 1) s += ",";
-                    s += "ref entity.Get<T" + i + ">()";
-                }
-
-                s += ");\n";
-                s += "    return true;\n";
-
-                s += "  }\n";
-
-                s += "  public bool Match<" + gsig + ">(Entity entity, EntityCallback<" + gsig + "> callback)\n" + where + "  {\n";
-                for (int i = 1; i <= componentCount; i++)
-                {
-                    s += $"    if (!entity.Has<T{i}>()) return false;\n";
-                }
-
-                s += "    callback(entity, ";
-                for (int i = 1; i <= componentCount; i++)
-                {
-                    if (i > 1) s += ",";
-                    s += "ref entity.Get<T" + i + ">()";
-                }
-
-                s += ");\n";
-                s += "    return true;\n";
-
-                s += "  }\n";
             }
 
 

@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using Leopotam.EcsLite;
 
@@ -8,6 +9,10 @@ namespace Kk.BusyEcs
     {
         internal readonly EcsWorldRef world;
         internal readonly int id;
+
+        public override string ToString() {
+            return $"Entity({world.index}:{id}, [{string.Join(", ", Components.Select(it => it.GetType().Name))}])";
+        }
 
         internal object[] Components
         {
