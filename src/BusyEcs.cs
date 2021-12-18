@@ -7,6 +7,7 @@ namespace Kk.BusyEcs
 {
     public static class BusyEcs
     {
+        public static bool SkipIterationCheck;
         
         private static Assembly[] _userAssemblies;
         public static string SystemOrderDumpFile { get; set; }

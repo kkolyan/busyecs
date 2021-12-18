@@ -183,6 +183,7 @@ namespace Kk.BusyEcs.Internal
                      ") ResolveInjectable<" +
                      injection.type.FullName + ">();\n";
             }
+
             return s;
         }
 
@@ -355,7 +356,7 @@ namespace Kk.BusyEcs.Internal
             for (int componentCount = 1; componentCount <= QueryMaxComponentCount; componentCount++)
             {
                 for (int rd = 0; rd <= componentCount; rd++)
-                {  
+                {
                     string gsig = "";
                     string where = "";
 
@@ -383,9 +384,12 @@ namespace Kk.BusyEcs.Internal
 
                     s += ".End();\n";
                     s += "      foreach (var id in filter) {\n";
-                    for (int i = 1; i <= componentCount; i++)
+                    if (!BusyEcs.SkipIterationCheck)
                     {
-                        s += $"        if (!PoolKeeper<T{i}>.byWorld[wi].Has(id)) continue;\n";
+                        for (int i = 1; i <= componentCount; i++)
+                        {
+                            s += $"        if (!PoolKeeper<T{i}>.byWorld[wi].Has(id)) continue;\n";
+                        }
                     }
 
                     s += "        callback(";
@@ -413,9 +417,12 @@ namespace Kk.BusyEcs.Internal
 
                     s += ".End();\n";
                     s += "      foreach (var id in filter) {\n";
-                    for (int i = 1; i <= componentCount; i++)
+                    if (!BusyEcs.SkipIterationCheck)
                     {
-                        s += $"        if (!PoolKeeper<T{i}>.byWorld[wi].Has(id)) continue;\n";
+                        for (int i = 1; i <= componentCount; i++)
+                        {
+                            s += $"        if (!PoolKeeper<T{i}>.byWorld[wi].Has(id)) continue;\n";
+                        }
                     }
 
                     s += "        callback(new Entity(w, id), ";
@@ -430,7 +437,7 @@ namespace Kk.BusyEcs.Internal
                     s += "      }\n";
 
                     s += "    }\n";
-                    s += "  }\n"; 
+                    s += "  }\n";
                 }
             }
 
