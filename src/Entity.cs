@@ -106,10 +106,15 @@ namespace Kk.BusyEcs
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void GetRaw(out EcsWorld world, out int entity)
+        public EcsWorldRef GetWorldRef()
         {
-            world = this.world.GetWorld();
-            entity = id;
+            return world;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int GetInternalId()
+        {
+            return id;
         }
     }
 }

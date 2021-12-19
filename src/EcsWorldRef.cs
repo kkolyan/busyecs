@@ -5,7 +5,7 @@ using Leopotam.EcsLite;
 
 namespace Kk.BusyEcs
 {
-    public struct EcsWorldRef : IEquatable<EcsWorldRef>
+    public readonly struct EcsWorldRef : IEquatable<EcsWorldRef>
     {
         internal readonly int index;
 
