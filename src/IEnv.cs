@@ -3,6 +3,8 @@ namespace Kk.BusyEcs
     public interface IEnv
     {
 
+        bool Match<T1>(Entity entity, out Ref<T1> c1) where T1 : struct;
+
         bool Match<T1>(Entity entity, SimpleCallback0<T1> callback) where T1 : struct;
         bool Match<T1>(Entity entity, EntityCallback0<T1> callback) where T1 : struct;
         void Query<T1>(SimpleCallback0<T1> callback) where T1 : struct;
@@ -12,6 +14,8 @@ namespace Kk.BusyEcs
         bool Match<T1>(Entity entity, EntityCallback1<T1> callback) where T1 : struct;
         void Query<T1>(SimpleCallback1<T1> callback) where T1 : struct;
         void Query<T1>(EntityCallback1<T1> callback) where T1 : struct;
+
+        bool Match<T1, T2>(Entity entity, out Ref<T1> c1, out Ref<T2> c2) where T1 : struct where T2 : struct;
 
         bool Match<T1, T2>(Entity entity, SimpleCallback0<T1, T2> callback) where T1 : struct where T2 : struct;
         bool Match<T1, T2>(Entity entity, EntityCallback0<T1, T2> callback) where T1 : struct where T2 : struct;
@@ -27,6 +31,8 @@ namespace Kk.BusyEcs
         bool Match<T1, T2>(Entity entity, EntityCallback2<T1, T2> callback) where T1 : struct where T2 : struct;
         void Query<T1, T2>(SimpleCallback2<T1, T2> callback) where T1 : struct where T2 : struct;
         void Query<T1, T2>(EntityCallback2<T1, T2> callback) where T1 : struct where T2 : struct;
+
+        bool Match<T1, T2, T3>(Entity entity, out Ref<T1> c1, out Ref<T2> c2, out Ref<T3> c3) where T1 : struct where T2 : struct where T3 : struct;
 
         bool Match<T1, T2, T3>(Entity entity, SimpleCallback0<T1, T2, T3> callback) where T1 : struct where T2 : struct where T3 : struct;
         bool Match<T1, T2, T3>(Entity entity, EntityCallback0<T1, T2, T3> callback) where T1 : struct where T2 : struct where T3 : struct;
@@ -47,6 +53,8 @@ namespace Kk.BusyEcs
         bool Match<T1, T2, T3>(Entity entity, EntityCallback3<T1, T2, T3> callback) where T1 : struct where T2 : struct where T3 : struct;
         void Query<T1, T2, T3>(SimpleCallback3<T1, T2, T3> callback) where T1 : struct where T2 : struct where T3 : struct;
         void Query<T1, T2, T3>(EntityCallback3<T1, T2, T3> callback) where T1 : struct where T2 : struct where T3 : struct;
+
+        bool Match<T1, T2, T3, T4>(Entity entity, out Ref<T1> c1, out Ref<T2> c2, out Ref<T3> c3, out Ref<T4> c4) where T1 : struct where T2 : struct where T3 : struct where T4 : struct;
 
         bool Match<T1, T2, T3, T4>(Entity entity, SimpleCallback0<T1, T2, T3, T4> callback) where T1 : struct where T2 : struct where T3 : struct where T4 : struct;
         bool Match<T1, T2, T3, T4>(Entity entity, EntityCallback0<T1, T2, T3, T4> callback) where T1 : struct where T2 : struct where T3 : struct where T4 : struct;
@@ -84,44 +92,44 @@ namespace Kk.BusyEcs
     }
     
 
-    public delegate void SimpleCallback0<T1>(T1 c1);
-    public delegate void EntityCallback0<T1>(Entity entity, T1 c1);
+    public delegate void SimpleCallback0<T1>(in T1 c1);
+    public delegate void EntityCallback0<T1>(Entity entity, in T1 c1);
 
     public delegate void SimpleCallback1<T1>(ref T1 c1);
     public delegate void EntityCallback1<T1>(Entity entity, ref T1 c1);
 
-    public delegate void SimpleCallback0<T1, T2>(T1 c1, T2 c2);
-    public delegate void EntityCallback0<T1, T2>(Entity entity, T1 c1, T2 c2);
+    public delegate void SimpleCallback0<T1, T2>(in T1 c1, in T2 c2);
+    public delegate void EntityCallback0<T1, T2>(Entity entity, in T1 c1, in T2 c2);
 
-    public delegate void SimpleCallback1<T1, T2>(ref T1 c1, T2 c2);
-    public delegate void EntityCallback1<T1, T2>(Entity entity, ref T1 c1, T2 c2);
+    public delegate void SimpleCallback1<T1, T2>(ref T1 c1, in T2 c2);
+    public delegate void EntityCallback1<T1, T2>(Entity entity, ref T1 c1, in T2 c2);
 
     public delegate void SimpleCallback2<T1, T2>(ref T1 c1, ref T2 c2);
     public delegate void EntityCallback2<T1, T2>(Entity entity, ref T1 c1, ref T2 c2);
 
-    public delegate void SimpleCallback0<T1, T2, T3>(T1 c1, T2 c2, T3 c3);
-    public delegate void EntityCallback0<T1, T2, T3>(Entity entity, T1 c1, T2 c2, T3 c3);
+    public delegate void SimpleCallback0<T1, T2, T3>(in T1 c1, in T2 c2, in T3 c3);
+    public delegate void EntityCallback0<T1, T2, T3>(Entity entity, in T1 c1, in T2 c2, in T3 c3);
 
-    public delegate void SimpleCallback1<T1, T2, T3>(ref T1 c1, T2 c2, T3 c3);
-    public delegate void EntityCallback1<T1, T2, T3>(Entity entity, ref T1 c1, T2 c2, T3 c3);
+    public delegate void SimpleCallback1<T1, T2, T3>(ref T1 c1, in T2 c2, in T3 c3);
+    public delegate void EntityCallback1<T1, T2, T3>(Entity entity, ref T1 c1, in T2 c2, in T3 c3);
 
-    public delegate void SimpleCallback2<T1, T2, T3>(ref T1 c1, ref T2 c2, T3 c3);
-    public delegate void EntityCallback2<T1, T2, T3>(Entity entity, ref T1 c1, ref T2 c2, T3 c3);
+    public delegate void SimpleCallback2<T1, T2, T3>(ref T1 c1, ref T2 c2, in T3 c3);
+    public delegate void EntityCallback2<T1, T2, T3>(Entity entity, ref T1 c1, ref T2 c2, in T3 c3);
 
     public delegate void SimpleCallback3<T1, T2, T3>(ref T1 c1, ref T2 c2, ref T3 c3);
     public delegate void EntityCallback3<T1, T2, T3>(Entity entity, ref T1 c1, ref T2 c2, ref T3 c3);
 
-    public delegate void SimpleCallback0<T1, T2, T3, T4>(T1 c1, T2 c2, T3 c3, T4 c4);
-    public delegate void EntityCallback0<T1, T2, T3, T4>(Entity entity, T1 c1, T2 c2, T3 c3, T4 c4);
+    public delegate void SimpleCallback0<T1, T2, T3, T4>(in T1 c1, in T2 c2, in T3 c3, in T4 c4);
+    public delegate void EntityCallback0<T1, T2, T3, T4>(Entity entity, in T1 c1, in T2 c2, in T3 c3, in T4 c4);
 
-    public delegate void SimpleCallback1<T1, T2, T3, T4>(ref T1 c1, T2 c2, T3 c3, T4 c4);
-    public delegate void EntityCallback1<T1, T2, T3, T4>(Entity entity, ref T1 c1, T2 c2, T3 c3, T4 c4);
+    public delegate void SimpleCallback1<T1, T2, T3, T4>(ref T1 c1, in T2 c2, in T3 c3, in T4 c4);
+    public delegate void EntityCallback1<T1, T2, T3, T4>(Entity entity, ref T1 c1, in T2 c2, in T3 c3, in T4 c4);
 
-    public delegate void SimpleCallback2<T1, T2, T3, T4>(ref T1 c1, ref T2 c2, T3 c3, T4 c4);
-    public delegate void EntityCallback2<T1, T2, T3, T4>(Entity entity, ref T1 c1, ref T2 c2, T3 c3, T4 c4);
+    public delegate void SimpleCallback2<T1, T2, T3, T4>(ref T1 c1, ref T2 c2, in T3 c3, in T4 c4);
+    public delegate void EntityCallback2<T1, T2, T3, T4>(Entity entity, ref T1 c1, ref T2 c2, in T3 c3, in T4 c4);
 
-    public delegate void SimpleCallback3<T1, T2, T3, T4>(ref T1 c1, ref T2 c2, ref T3 c3, T4 c4);
-    public delegate void EntityCallback3<T1, T2, T3, T4>(Entity entity, ref T1 c1, ref T2 c2, ref T3 c3, T4 c4);
+    public delegate void SimpleCallback3<T1, T2, T3, T4>(ref T1 c1, ref T2 c2, ref T3 c3, in T4 c4);
+    public delegate void EntityCallback3<T1, T2, T3, T4>(Entity entity, ref T1 c1, ref T2 c2, ref T3 c3, in T4 c4);
 
     public delegate void SimpleCallback4<T1, T2, T3, T4>(ref T1 c1, ref T2 c2, ref T3 c3, ref T4 c4);
     public delegate void EntityCallback4<T1, T2, T3, T4>(Entity entity, ref T1 c1, ref T2 c2, ref T3 c3, ref T4 c4);

@@ -1,83 +1,92 @@
 using System;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using Kk.BusyEcs.Internal;
 using Leopotam.EcsLite;
 
 namespace Kk.BusyEcs
 {
     public readonly partial struct Entity : IEquatable<Entity>
     {
-        internal readonly EcsWorldRef world;
+        internal readonly int world;
         internal readonly int id;
 
         public override string ToString() {
-            return $"Entity({world.index}:{id}, [{string.Join(", ", Components.Select(it => it.GetType().Name))}])";
+            return $"Entity({world}:{id:x8}, [{string.Join(", ", Components.Select(it => it.GetType().Name))}])";
         }
 
         internal object[] Components
         {
             get
             {
-                object[] list = new object[world.GetComponentsCount(id)];
-                world.GetComponents(id, ref list);
+                EcsWorld ecsWorld = GetWorld();
+                object[] list = new object[ecsWorld.GetComponentsCount(id)];
+                ecsWorld.GetComponents(id, ref list);
                 return list;
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Entity(int world, int id)
+        {
+            this.world = world;
+            this.id = id;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Entity(EcsWorld world, int id)
         {
-            this.world = new EcsWorldRef(world);
+            this.world = Array.IndexOf(WorldsKeeper.worlds, world);
             this.id = id;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public EntityRef AsRef()
         {
-            return new EntityRef(world.PackEntityWithWorld(id));
+            return new EntityRef(WorldsKeeper.worlds[world].PackEntityWithWorld(id));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T Add<T>() where T : struct
         {
-            return ref world.GetPool<T>().Add(id);
+            return ref PoolKeeper<T>.byWorld[world].Add(id);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Entity Add<T>(in T initialState) where T : struct
         {
-            world.GetPool<T>().Add(id) = initialState;
+            PoolKeeper<T>.byWorld[world].Add(id) = initialState;
             return this;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void DelEntity()
         {
-            world.DelEntity(id);
+            WorldsKeeper.worlds[world].DelEntity(id);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Del<T>() where T : struct
         {
-            world.GetPool<T>().Del(id);
+            PoolKeeper<T>.byWorld[world].Del(id);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T Get<T>() where T : struct
         {
-            return ref world.GetPool<T>().Get(id);
+            return ref PoolKeeper<T>.byWorld[world].Get(id);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Has<T>() where T : struct
         {
-            return world.GetPool<T>().Has(id);
+            return PoolKeeper<T>.byWorld[world].Has(id);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(Entity other)
         {
-            return world.Equals(other.world) && id == other.id;
+            return world == other.world && id == other.id;
         }
 
         public override bool Equals(object obj)
@@ -89,7 +98,7 @@ namespace Kk.BusyEcs
         {
             unchecked
             {
-                return (world.GetHashCode() * 397) ^ id;
+                return (world * 397) ^ id;
             }
         }
 
@@ -106,9 +115,9 @@ namespace Kk.BusyEcs
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public EcsWorldRef GetWorldRef()
+        public EcsWorld GetWorld()
         {
-            return world;
+            return WorldsKeeper.worlds[world];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -69,10 +69,14 @@ namespace Kk.BusyEcs
     public interface IEnv
     {
 <% for (let querySize = 1; querySize <= data.maxQuerySize; querySize++) {
-    for (let rd = 0; rd <= querySize; rd++) { -%>
-<%
     let gsig = join(", ", 1, querySize, i => "T" + i);
     let where = join(" ", 1, querySize, i => "where T" + i + " : struct");
+    let refs = join(", ", 1, querySize, i => "out c" + i);
+    let refdecs = join(", ", 1, querySize, i => "out Ref<T" + i + "> c" + i);
+%>
+        bool Match<<%=gsig%>>(Entity entity, <%=refdecs%>) <%=where%>;
+<%
+    for (let rd = 0; rd <= querySize; rd++) { 
 %>
         bool Match<<%= gsig %>>(Entity entity, SimpleCallback<%=rd%><<%= gsig %>> callback) <%=where%>;
         bool Match<<%= gsig %>>(Entity entity, EntityCallback<%=rd%><<%= gsig %>> callback) <%=where%>;
@@ -92,10 +96,11 @@ namespace Kk.BusyEcs
     }
     
 <% for (let querySize = 1; querySize <= data.maxQuerySize; querySize++) {
-    for (let rd = 0; rd <= querySize; rd++) { -%>
+    for (let rd = 0; rd <= querySize; rd++) { 
+-%>
 <%
     let gsig = join(", ", 1, querySize, i => "T" + i);
-    let sig = join(", ", 1, querySize, i => (i <= rd ? "ref T" : "T") + i + " c" + i);
+    let sig = join(", ", 1, querySize, i => (i <= rd ? "ref T" : "in T") + i + " c" + i);
 %>
     public delegate void SimpleCallback<%=rd%><<%=gsig%>>(<%=sig%>);
     public delegate void EntityCallback<%=rd%><<%=gsig%>>(Entity entity, <%=sig%>);
@@ -113,11 +118,14 @@ namespace Kk.BusyEcs
         // assigned from generated ECS container
         internal static IEnv env;
 <% for (let querySize = 1; querySize <= data.maxQuerySize; querySize++) {
-    for (let rd = 0; rd <= querySize; rd++) { -%>
-<%
     let gsig = join(", ", 1, querySize, i => "T" + i);
     let where = join(" ", 1, querySize, i => "where T" + i + " : struct");
+    let refs = join(", ", 1, querySize, i => "out c" + i);
+    let refdecs = join(", ", 1, querySize, i => "out Ref<T" + i + "> c" + i);
 %>
+        public bool Match<<%=gsig%>>(<%=refdecs%>) <%=where%> => env.Match(this, <%=refs%>);
+<%
+    for (let rd = 0; rd <= querySize; rd++) { %>
         public bool Match<<%=gsig%>>(SimpleCallback<%=rd%><<%=gsig%>> callback) <%=where%> => env.Match(this, callback);
         public bool Match<<%=gsig%>>(EntityCallback<%=rd%><<%=gsig%>> callback) <%=where%> => env.Match(this, callback);
 <%  } -%>
@@ -133,11 +141,15 @@ namespace Kk.BusyEcs
     public readonly partial struct EntityRef
     {
 <% for (let querySize = 1; querySize <= data.maxQuerySize; querySize++) {
-    for (let rd = 0; rd <= querySize; rd++) { -%>
-<%
     let gsig = join(", ", 1, querySize, i => "T" + i);
     let where = join(" ", 1, querySize, i => "where T" + i + " : struct");
+    let refs = join(", ", 1, querySize, i => "out c" + i);
+    let refdecs = join(", ", 1, querySize, i => "out Ref<T" + i + "> c" + i);
+    let refdefaults = join(" ", 1, querySize, i => "c" + i +" = default;");
 %>
+        public bool Match<<%=gsig%>>(<%=refdecs%>) <%=where%> { if (Deref(out Entity entity)) { return entity.Match(<%=refs%>); } <%=refdefaults%> return false; }
+<%
+    for (let rd = 0; rd <= querySize; rd++) { %>
         public bool Match<<%=gsig%>>(SimpleCallback<%=rd%><<%=gsig%>> callback) <%=where%> => Deref(out Entity entity) && entity.Match(callback);
         public bool Match<<%=gsig%>>(EntityCallback<%=rd%><<%=gsig%>> callback) <%=where%> => Deref(out Entity entity) && entity.Match(callback);
 <%  } -%>

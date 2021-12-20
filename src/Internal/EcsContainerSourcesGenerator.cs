@@ -175,7 +175,7 @@ namespace Kk.BusyEcs.Internal
 
             s += "    AddInjectable(this, typeof(IEnv));\n";
             s += "    typeof(Entity).GetField(\"env\", BindingFlags.NonPublic | BindingFlags.Static).SetValue(null, this);\n";
-            s += "    WorldsKeeper.worlds = Enumerable.Empty<EcsWorld>().Append(worlds.GetWorld()).Concat(worlds.GetAllNamedWorlds().Values).ToArray();\n";
+            s += "    WorldsKeeper.worlds = allWorlds.ToArray();\n";
 
             foreach (Injection injection in ctx.injections)
             {
@@ -209,90 +209,17 @@ namespace Kk.BusyEcs.Internal
 
         private static string GenerateConstructor(Context ctx)
         {
-            long nextVarId = 0;
             string s = "";
             foreach (KeyValuePair<Type, List<MethodInfo>> pair in ctx.systemsByPhase)
             {
-                s += "    _phaseExecutionByType[typeof(" + pair.Key.FullName + ")] = () => {\n";
-                foreach (MethodInfo method in pair.Value)
-                {
-                    if (method.GetParameters().Length <= 0)
-                    {
-                        s += "      " + SystemInstanceVar(method.DeclaringType) + "." + method.Name + "();\n";
-                    }
-                    else
-                    {
-                        bool supplyEntity = false;
-                        List<Type> components = new List<Type>();
-                        foreach (ParameterInfo parameter in method.GetParameters())
-                        {
-                            if (parameter.ParameterType == typeof(Entity))
-                            {
-                                supplyEntity = true;
-                            }
-                            else
-                            {
-                                if (parameter.ParameterType.IsByRef)
-                                {
-                                    components.Add(parameter.ParameterType.GetElementType());
-                                }
-                                else
-                                {
-                                    components.Add(parameter.ParameterType);
-                                }
-                            }
-                        }
-
-                        foreach (string world in ctx.worlds)
-                        {
-                            string entityVar = "entity" + nextVarId++;
-                            s += "      foreach (var " + entityVar + " in " + FilterName(world, components) + ") {\n";
-                            s += "        " + SystemInstanceVar(method.DeclaringType) + "." + method.Name + "(";
-                            if (supplyEntity) { }
-
-                            bool first = true;
-                            foreach (ParameterInfo parameter in method.GetParameters())
-                            {
-                                if (first)
-                                {
-                                    first = false;
-                                }
-                                else
-                                {
-                                    s += ", ";
-                                }
-
-                                if (parameter.ParameterType == typeof(Entity))
-                                {
-                                    s += "new Entity(" + WorldVar(world) + ", " + entityVar + ")";
-                                }
-                                else
-                                {
-                                    Type componentType;
-                                    if (parameter.ParameterType.IsByRef)
-                                    {
-                                        s += "ref ";
-                                        componentType = parameter.ParameterType.GetElementType();
-                                    }
-                                    else
-                                    {
-                                        componentType = parameter.ParameterType;
-                                    }
-
-                                    s += PoolVar(world, componentType) + ".Get(" + entityVar + ")";
-                                }
-                            }
-
-                            s += ");\n";
-                            s += "      }\n";
-                        }
-                    }
-                }
-
-                s += "    };\n";
+                s += $"    _phaseExecutionByType[typeof({pair.Key.FullName})] = {PhaseName(pair.Key)};\n";
             }
-
             return s;
+        }
+
+        private static string PhaseName(Type key)
+        {
+            return $"Phase_{key.Name}";
         }
 
 
@@ -312,6 +239,8 @@ namespace Kk.BusyEcs.Internal
             s += "    \n";
             s += "    return injectable;\n";
             s += "  }\n";
+            
+            s += GeneratePhaseMethods(ctx);
 
             for (int componentCount = 1; componentCount <= NewEntityMaxComponentCount; componentCount++)
             {
@@ -425,7 +354,7 @@ namespace Kk.BusyEcs.Internal
                         }
                     }
 
-                    s += "        callback(new Entity(w, id), ";
+                    s += "        callback(new Entity(wi, id), ";
                     for (int i = 1; i <= componentCount; i++)
                     {
                         if (i > 1) s += ", ";
@@ -443,23 +372,53 @@ namespace Kk.BusyEcs.Internal
 
             for (int componentCount = 1; componentCount <= QueryMaxComponentCount; componentCount++)
             {
+                string gsig = "";
+                string where = "";
+
+                for (int i = 1; i <= componentCount; i++)
+                {
+                    if (i > 1) gsig += ", ";
+
+                    gsig += "T" + i;
+                }
+
+                for (int i = 1; i <= componentCount; i++)
+                {
+                    where += "    where T" + i + " : struct \n";
+                }
+
+                s += $"  public bool Match<{gsig}>(Entity entity";
+                for (int i = 1; i <= componentCount; i++)
+                {
+                    s += $", out Ref<T{i}> c{i}";
+                }
+                s += $")\n{@where} {{\n";
+                s += "    if (";
+                for (int i = 1; i <= componentCount; i++)
+                {
+                    if (i > 1)
+                    {
+                        s += " || ";
+                    }
+                    s += $"!entity.Has<T{i}>()";
+                }
+
+                s += ") {\n";
+                for (int i = 1; i <= componentCount; i++)
+                {
+                    s += $"      c{i} = default;\n";
+                }
+                s += "      return false;\n";
+                s += "    }\n";
+                for (int i = 1; i <= componentCount; i++)
+                {
+                    s += $"    c{i} = new Ref<T{i}>(entity);\n";
+                }
+                s += "    return true;\n";
+                s += "  }\n";
+                
                 for (int rd = 0; rd <= componentCount; rd++)
                 {
-                    string gsig = "";
-                    string where = "";
-
-                    for (int i = 1; i <= componentCount; i++)
-                    {
-                        if (i > 1) gsig += ", ";
-
-                        gsig += "T" + i;
-                    }
-
-                    for (int i = 1; i <= componentCount; i++)
-                    {
-                        where += "    where T" + i + " : struct \n";
-                    }
-
                     s += $"  public bool Match<{gsig}>(Entity entity, SimpleCallback{rd}<{gsig}> callback)\n{@where}  {{\n";
                     for (int i = 1; i <= componentCount; i++)
                     {
@@ -478,6 +437,7 @@ namespace Kk.BusyEcs.Internal
                     s += "    return true;\n";
 
                     s += "  }\n";
+                    
 
                     s += $"  public bool Match<{gsig}>(Entity entity, EntityCallback{rd}<{gsig}> callback)\n{@where}  {{\n";
                     for (int i = 1; i <= componentCount; i++)
@@ -502,6 +462,102 @@ namespace Kk.BusyEcs.Internal
 
 
             return s;
+        }
+
+        private static string GeneratePhaseMethods(Context ctx)
+        {
+            string s = "";
+            foreach (KeyValuePair<Type, List<MethodInfo>> pair in ctx.systemsByPhase)
+            {
+                s += $"  private void {PhaseName(pair.Key)}() {{\n";
+                foreach (MethodInfo method in pair.Value)
+                {
+                    if (method.GetParameters().Length <= 0)
+                    {
+                        s += "    " + SystemInstanceVar(method.DeclaringType) + "." + method.Name + "();\n";
+                    }
+                    else
+                    {
+                        bool supplyEntity = false;
+                        List<Type> components = new List<Type>();
+                        foreach (ParameterInfo parameter in method.GetParameters())
+                        {
+                            if (IsEntity(parameter.ParameterType))
+                            {
+                                supplyEntity = true;
+                            }
+                            else
+                            {
+                                if (parameter.ParameterType.IsByRef)
+                                {
+                                    components.Add(parameter.ParameterType.GetElementType());
+                                }
+                                else
+                                {
+                                    components.Add(parameter.ParameterType);
+                                }
+                            }
+                        }
+
+                        for (var worldIndex = 0; worldIndex < ctx.worlds.Count; worldIndex++)
+                        {
+                            string world = ctx.worlds[worldIndex];
+                            s += $"    foreach (var entity in {FilterName(world, components)}) {{\n";
+                            s += $"      {SystemInstanceVar(method.DeclaringType)}.{method.Name}(";
+                            if (supplyEntity) { }
+
+                            bool first = true;
+                            foreach (ParameterInfo parameter in method.GetParameters())
+                            {
+                                if (first)
+                                {
+                                    first = false;
+                                }
+                                else
+                                {
+                                    s += ", ";
+                                }
+
+                                if (IsEntity(parameter.ParameterType))
+                                {
+                                    s += $"new Entity({worldIndex}, entity)";
+                                }
+                                else
+                                {
+                                    Type componentType;
+                                    if (parameter.ParameterType.IsByRef)
+                                    {
+                                        if (!parameter.IsIn && !parameter.IsOut)
+                                        {
+                                            s += "ref ";
+                                        }
+
+                                        componentType = parameter.ParameterType.GetElementType();
+                                    }
+                                    else
+                                    {
+                                        componentType = parameter.ParameterType;
+                                    }
+
+                                    s += $"{PoolVar(world, componentType)}.Get(entity)";
+                                }
+                            }
+
+                            s += ");\n";
+                            s += "    }\n";
+                        }
+                    }
+                }
+
+                s += "  }\n";
+            }
+
+            return s;
+        }
+
+        private static bool IsEntity(Type type)
+        {
+            return type == typeof(Entity) || type.IsByRef && type.GetElementType() == typeof(Entity);
         }
 
         private static string GenerateNestedClasses(Context ctx)
@@ -618,9 +674,14 @@ namespace Kk.BusyEcs.Internal
                     List<Type> filter = new List<Type>();
                     foreach (ParameterInfo parameter in method.GetParameters())
                     {
-                        if (parameter.ParameterType == typeof(Entity))
+                        if (IsEntity(parameter.ParameterType))
                         {
                             continue;
+                        }
+
+                        if (!parameter.ParameterType.IsByRef && !parameter.IsIn)
+                        {
+                            Debug.LogWarning($"parameter `{method.DeclaringType?.FullName}.{method.Name}.{parameter.Name}` is declared as simple by-value. To avoid mistakes, consider declaring it as `in` to protect from errors and allow more optimizations by compiler.\n  parameter: {parameter},\n  method: {method}, \n  class: ({method.DeclaringType})");
                         }
 
                         Type componentType = parameter.ParameterType.IsByRef ? parameter.ParameterType.GetElementType() : parameter.ParameterType;
