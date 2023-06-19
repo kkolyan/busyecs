@@ -38,7 +38,7 @@ namespace Kk.BusyEcs.Internal
 
         internal static void GenerateCodeToFile() { File.WriteAllText(CodegenFile, GenerateCode()); }
 
-        internal static string GenerateCode()
+        private static string GenerateCode()
         {
             EcsContainerSourcesGenerator.Result result = EcsContainerSourcesGenerator.GenerateEcsContainer(BusyEcs.GetUserAssemblies());
             return result.source;
@@ -119,6 +119,11 @@ namespace Kk.BusyEcs.Internal
             if (GUILayout.Button("Export generated code..."))
             {
                 EditorTools.ExportGeneratedCode();
+            }
+
+            if (GUILayout.Button("Generate optimized systems..."))
+            {
+                SystemsOptimizer.GenerateOptimizedSystems(BusyEcs.GetUserAssemblies());
             }
 
             string lockFile = BusyEcs.SystemOrderDumpFile;

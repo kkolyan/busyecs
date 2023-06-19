@@ -39,8 +39,7 @@ namespace Kk.BusyEcs.Internal
 
         public static Result GenerateEcsContainer(IEnumerable<Assembly> assembliesToScan)
         {
-            Context context = new Context();
-            Scan(context, assembliesToScan);
+            CodegenContext context = AssemblyContextFactory.ScanAssemblies(assembliesToScan);
 
             ;
             return new Result(
@@ -49,25 +48,28 @@ namespace Kk.BusyEcs.Internal
             );
         }
 
-        private class Injection
+        internal static string WorldVar(string world)
         {
-            public Type system;
-            public Type type;
-            public string field;
+            if (world == "")
+            {
+                return "defaultWorld";
+            }
+
+            return world;
         }
 
-        private class Context
+        internal static string FilterName(string world, List<Type> components) => "filter_" + WorldVar(world) + "_" + string.Join("_", components.Select(it => it.Name).OrderBy(x => x));
+        internal static string FilterName(string world, List<string> components) => "filter_" + WorldVar(world) + "_" + string.Join("_", components.Select(it => it.ToString()).OrderBy(x => x));
+
+        internal static string PoolVar(string world, Type type) => "pool_" + WorldVar(world) + "_" + type.Name;
+        internal static string PoolVar(string world, string type) => "pool_" + WorldVar(world) + "_" + type;
+
+        internal static string PhaseName(Type key)
         {
-            public List<Injection> injections = new List<Injection>();
-            public List<Type> phases = new List<Type>();
-            public Dictionary<Type, List<MethodInfo>> systemsByPhase = new Dictionary<Type, List<MethodInfo>>();
-            public List<Type> systemClasses = new List<Type>();
-            public HashSet<Type> components = new HashSet<Type>();
-            public List<List<Type>> filters = new List<List<Type>>();
-            public List<string> worlds = new List<string>();
+            return $"Phase_{key.Name}";
         }
 
-        private static string GenerateBody(Context ctx)
+        private static string GenerateBody(CodegenContext ctx)
         {
             string s = "";
             s += "using System;\n";
@@ -95,16 +97,16 @@ namespace Kk.BusyEcs.Internal
             return s;
         }
 
-        private static string GenerateFields(Context ctx)
+        private static string GenerateFields(CodegenContext ctx)
         {
             string s = "";
 
             s += "  private readonly Dictionary<Type, Action> _phaseExecutionByType = new Dictionary<Type, Action>();\n";
             s += "  private EcsSystems worlds;\n";
             s += "  private Dictionary<Type, object> injectables = new Dictionary<Type, object>();\n";
-            s += "  private EcsWorld[] allWorlds;\n";
+            s += "  public EcsWorld[] allWorlds;\n";
 
-            foreach (Type systemClass in ctx.systemClasses)
+            foreach (var systemClass in ctx.systemClasses)
             {
                 s += "  private " + systemClass.FullName + " " + SystemInstanceVar(systemClass) + ";\n";
             }
@@ -112,14 +114,14 @@ namespace Kk.BusyEcs.Internal
             foreach (string world in ctx.worlds)
             {
                 s += "  private EcsWorld " + WorldVar(world) + ";\n";
-                foreach (Type componentType in ctx.components)
+                foreach (var componentType in ctx.components)
                 {
-                    s += "  private EcsPool<" + componentType.FullName + "> " + PoolVar(world, componentType) + ";\n";
+                    s += "  public EcsPool<" + componentType.FullName + "> " + PoolVar(world, componentType) + ";\n";
                 }
 
-                foreach (List<Type> pair in ctx.filters)
+                foreach (var pair in ctx.filters.Values)
                 {
-                    s += "  private EcsFilter " + FilterName(world, pair) + ";\n";
+                    s += "  public EcsFilter " + FilterName(world, pair) + ";\n";
                 }
             }
 
@@ -131,11 +133,11 @@ namespace Kk.BusyEcs.Internal
             return "_" + type.Name;
         }
 
-        private static string GenerateInit(Context ctx)
+        private static string GenerateInit(CodegenContext ctx)
         {
             string s = "";
             s += "    this.worlds = worlds;\n";
-            foreach (Type systemClass in ctx.systemClasses)
+            foreach (var systemClass in ctx.systemClasses)
             {
                 s += "    " + SystemInstanceVar(systemClass) + " = new " + systemClass.FullName + " ();\n";
             }
@@ -156,12 +158,12 @@ namespace Kk.BusyEcs.Internal
 
                 s += $"    allWorlds[{worldIndex}] = " + WorldVar(world) + ";\n";
 
-                foreach (Type componentType in ctx.components)
+                foreach (var componentType in ctx.components)
                 {
                     s += "    " + PoolVar(world, componentType) + " = " + WorldVar(world) + ".GetPool<" + componentType.FullName + ">();\n";
                 }
 
-                foreach (List<Type> pair in ctx.filters)
+                foreach (var pair in ctx.filters.Values)
                 {
                     s += "    " + FilterName(world, pair) + " = " + WorldVar(world) + ".Filter<" + pair[0].FullName + ">()";
                     for (var i = 1; i < pair.Count; i++)
@@ -173,57 +175,33 @@ namespace Kk.BusyEcs.Internal
                 }
             }
 
-            s += "    AddInjectable(this, typeof(IEnv));\n";
+            s += $"    AddInjectable(this, typeof({nameof(IEnv)}));\n";
+            s += $"    AddInjectable(this, typeof({CodeGenConstants.GeneratedEcsContainerClassName}));\n";
             s += "    typeof(Entity).GetField(\"env\", BindingFlags.NonPublic | BindingFlags.Static).SetValue(null, this);\n";
             s += "    WorldsKeeper.worlds = allWorlds.ToArray();\n";
 
-            foreach (Injection injection in ctx.injections)
+            foreach (CodegenContext.Injection injection in ctx.injections)
             {
-                s += "    " + SystemInstanceVar(injection.system) + "." + injection.field + " = (" + injection.type.FullName +
+                s += "    " + SystemInstanceVar(injection.target) + "." + injection.field + " = (" + injection.subject.FullName +
                      ") ResolveInjectable<" +
-                     injection.type.FullName + ">();\n";
+                     injection.subject.FullName + ">();\n";
             }
 
             return s;
         }
 
-        private static string WorldVar(string world)
-        {
-            if (world == "")
-            {
-                return "defaultWorld";
-            }
-
-            return world;
-        }
-
-        private static string FilterName(string world, List<Type> components)
-        {
-            return "filter_" + WorldVar(world) + "_" + string.Join("_", components.Select(it => it.Name).OrderBy(x => x));
-        }
-
-        private static string PoolVar(string world, Type type)
-        {
-            return "pool_" + WorldVar(world) + "_" + type.Name;
-        }
-
-        private static string GenerateConstructor(Context ctx)
+        private static string GenerateConstructor(CodegenContext ctx)
         {
             string s = "";
-            foreach (KeyValuePair<Type, List<MethodInfo>> pair in ctx.systemsByPhase)
+            foreach (var pair in ctx.systemsByPhase)
             {
                 s += $"    _phaseExecutionByType[typeof({pair.Key.FullName})] = {PhaseName(pair.Key)};\n";
             }
             return s;
         }
 
-        private static string PhaseName(Type key)
-        {
-            return $"Phase_{key.Name}";
-        }
 
-
-        private static string GenerateMethods(Context ctx)
+        private static string GenerateMethods(CodegenContext ctx)
         {
             string s = "";
             s += "  public void AddInjectable(object injectable, Type overrideType = null)\n";
@@ -464,10 +442,10 @@ namespace Kk.BusyEcs.Internal
             return s;
         }
 
-        private static string GeneratePhaseMethods(Context ctx)
+        private static string GeneratePhaseMethods(CodegenContext ctx)
         {
             string s = "";
-            foreach (KeyValuePair<Type, List<MethodInfo>> pair in ctx.systemsByPhase)
+            foreach (var pair in ctx.systemsByPhase)
             {
                 s += $"  private void {PhaseName(pair.Key)}() {{\n";
                 foreach (MethodInfo method in pair.Value)
@@ -555,12 +533,12 @@ namespace Kk.BusyEcs.Internal
             return s;
         }
 
-        private static bool IsEntity(Type type)
+        internal static bool IsEntity(Type type)
         {
             return type == typeof(Entity) || type.IsByRef && type.GetElementType() == typeof(Entity);
         }
 
-        private static string GenerateNestedClasses(Context ctx)
+        private static string GenerateNestedClasses(CodegenContext ctx)
         {
             var s = "";
 
@@ -588,128 +566,6 @@ namespace Kk.BusyEcs.Internal
             }
 
             return s;
-        }
-
-        private static void Scan(Context ctx, IEnumerable<Assembly> assemblies)
-        {
-            ctx.systemsByPhase = new Dictionary<Type, List<MethodInfo>>();
-            ctx.systemClasses = new List<Type>();
-
-            HashSet<string> worlds = new HashSet<string>();
-            worlds.Add("");
-
-            foreach (Assembly assembly in assemblies)
-            {
-                Type[] types;
-                try
-                {
-                    types = assembly.GetTypes();
-                }
-                catch (ReflectionTypeLoadException e)
-                {
-                    foreach (Exception loaderException in e.LoaderExceptions)
-                    {
-                        Debug.LogError(loaderException);
-                    }
-
-                    Debug.LogError(e);
-                    continue;
-                }
-
-                foreach (Type type in types)
-                {
-                    if (type.GetCustomAttribute<EcsPhaseAttribute>() != null)
-                    {
-                        ctx.systemsByPhase[type] = new List<MethodInfo>();
-                        ctx.phases.Add(type);
-                    }
-
-                    if (type.GetCustomAttribute<EcsSystemAttribute>() != null)
-                    {
-                        ctx.systemClasses.Add(type);
-
-                        foreach (FieldInfo field in type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
-                        {
-                            if (field.GetCustomAttribute<InjectAttribute>() != null)
-                            {
-                                ctx.injections.Add(new Injection
-                                {
-                                    field = field.Name,
-                                    system = type,
-                                    type = field.FieldType
-                                });
-                            }
-                        }
-                    }
-
-                    EcsWorldAttribute ecsWorldAttribute = type.GetCustomAttribute<EcsWorldAttribute>();
-                    if (ecsWorldAttribute != null)
-                    {
-                        worlds.Add(ecsWorldAttribute.name);
-                    }
-                }
-            }
-
-            ctx.worlds.AddRange(worlds.OrderBy(it => it));
-
-            foreach (Type systemClass in ctx.systemClasses)
-            {
-                foreach (MethodInfo method in systemClass.GetMethods())
-                {
-                    foreach (Attribute attribute in method.GetCustomAttributes())
-                    {
-                        if (ctx.systemsByPhase.TryGetValue(attribute.GetType(), out var systemsForPhase))
-                        {
-                            systemsForPhase.Add(method);
-                        }
-                    }
-                }
-            }
-
-
-            foreach (List<MethodInfo> methods in ctx.systemsByPhase.Values)
-            {
-                foreach (MethodInfo method in methods)
-                {
-                    List<Type> filter = new List<Type>();
-                    foreach (ParameterInfo parameter in method.GetParameters())
-                    {
-                        if (IsEntity(parameter.ParameterType))
-                        {
-                            continue;
-                        }
-
-                        if (!parameter.ParameterType.IsByRef && !parameter.IsIn)
-                        {
-                            Debug.LogWarning($"parameter `{method.DeclaringType?.FullName}.{method.Name}.{parameter.Name}` is declared as simple by-value. To avoid mistakes, consider declaring it as `in` to protect from errors and allow more optimizations by compiler.\n  parameter: {parameter},\n  method: {method}, \n  class: ({method.DeclaringType})");
-                        }
-
-                        Type componentType = parameter.ParameterType.IsByRef ? parameter.ParameterType.GetElementType() : parameter.ParameterType;
-                        ctx.components.Add(componentType);
-                        filter.Add(componentType);
-                    }
-
-                    if (filter.Any())
-                    {
-                        ctx.filters.Add(filter.OrderBy(x => x.Name).ToList());
-                    }
-                }
-            }
-
-            BusyEcs.SortSystems systemsOrder = BusyEcs.SystemsOrder;
-            if (systemsOrder != null)
-            {
-                foreach (List<MethodInfo> systems in ctx.systemsByPhase.Values)
-                {
-                    MethodInfo[] temp = systems.ToArray();
-                    systemsOrder(temp);
-                    systems.Clear();
-                    foreach (MethodInfo system in temp)
-                    {
-                        systems.Add(system);
-                    }
-                }
-            }
         }
     }
 }
