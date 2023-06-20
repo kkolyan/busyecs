@@ -13,6 +13,7 @@
     "nunit.framework.dll"
   ],
   "defineConstraints": [
-    "UNITY_INCLUDE_TESTS"
+    "UNITY_INCLUDE_TESTS",
+    "!EXCLUDE_BUSYECS_TESTS"
   ]
 }
