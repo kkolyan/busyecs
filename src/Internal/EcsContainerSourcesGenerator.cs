@@ -214,6 +214,10 @@ namespace Kk.BusyEcs.Internal
                     {
                         s += "      " + SystemInstanceVar(method.DeclaringType) + "." + method.Name + "();\n";
                     }
+                    else if (method.GetParameters().Length == 1 && method.GetParameters()[0].ParameterType == typeof(IEnv))
+                    {
+                        s += "      " + SystemInstanceVar(method.DeclaringType) + "." + method.Name + "(this);\n";
+                    }
                     else
                     {
                         bool supplyEntity = false;
@@ -223,6 +227,8 @@ namespace Kk.BusyEcs.Internal
                             if (parameter.ParameterType == typeof(Entity))
                             {
                                 supplyEntity = true;
+                            } else if (parameter.ParameterType == typeof(IEnv))
+                            {
                             }
                             else
                             {
@@ -259,6 +265,10 @@ namespace Kk.BusyEcs.Internal
                                 if (parameter.ParameterType == typeof(Entity))
                                 {
                                     s += "new Entity(" + WorldVar(world) + ", " + entityVar + ")";
+                                }
+                                else if (parameter.ParameterType == typeof(IEnv))
+                                {
+                                    s += "this";
                                 }
                                 else
                                 {
@@ -595,6 +605,10 @@ namespace Kk.BusyEcs.Internal
                     foreach (ParameterInfo parameter in method.GetParameters())
                     {
                         if (parameter.ParameterType == typeof(Entity))
+                        {
+                            continue;
+                        }
+                        if (parameter.ParameterType == typeof(IEnv))
                         {
                             continue;
                         }

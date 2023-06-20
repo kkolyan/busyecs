@@ -115,6 +115,10 @@ namespace Kk.BusyEcs.Test
         // because Update phase triggered once per frame
         [Update]
         public void GlobalCallback() { }
+        
+        // IEnv could be injected via method parameter
+        [Update]
+        public void GlobalCallback2(IEnv env) { }
 
         [Start]
         public void CreateCharacter()
